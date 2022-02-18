@@ -66,7 +66,7 @@ We treat the genomic data of each sample as a graph, where each gene stands for 
 gene-gene interactions are defined as edges and taken from [HumanBase](https://hb.flatironinstitute.org/).
 Each gene (node) is associated with node features. In this project,  we used pretained
 neural networks to extract 128-dim features for each gene. Specifically, we used Xpresso
-[^1] to encode the non-coding regions; we used UniRep [^2] to encode the coding regions. 
+[1] to encode the non-coding regions; we used UniRep [2] to encode the coding regions. 
 
 ### Generating pre-processed gene graph -- this is subject to change
 
@@ -75,27 +75,27 @@ run `02-trasfer_hb_graph.py` to read the graph, symmetrize edges (the original d
 contains edges in one direction only), and store as a Python pickle.
 
 ### References
-[^1] Predicting mRNA Abundance Directly from Genomic Sequence Using Deep Convolutional Neural Networks, Agarwal et al. 2020, Cell Reports
+[1] Predicting mRNA Abundance Directly from Genomic Sequence Using Deep Convolutional Neural Networks, Agarwal et al. 2020, Cell Reports
 
-[^2] Unified rational protein engineering with sequence-only deep representation learning, Alley et al. 2019. Nature Methods
+[2] Unified rational protein engineering with sequence-only deep representation learning, Alley et al. 2019. Nature Methods
 
 ## Graph Neural Network (GNNs) for graph classification
-We have implemented two kinds of GNNs: one is vanilla GNN (GCN [^3]) and another one is a
-more advanced GNN (GCNII[^4]).
+We have implemented two kinds of GNNs: one is vanilla GNN (GCN [3]) and another one is a
+more advanced GNN (GCNII[4]).
 
-[^3] Semi-supervised classification with graph convolutional networks, Kipf, Thomas N., and Max Welling. ICLR 2017
+[3] Semi-supervised classification with graph convolutional networks, Kipf, Thomas N., and Max Welling. ICLR 2017
 
-[^4] Simple and Deep Graph Convolutional Networks, Chen et al. ICML 2020
+[4] Simple and Deep Graph Convolutional Networks, Chen et al. ICML 2020
 
 
 ## Other related work
-[^5] Deep generative models of genetic variation capture the effects of mutations, Riesselman, Adam J., et al. Nature Method 2018
+[5] Deep generative models of genetic variation capture the effects of mutations, Riesselman, Adam J., et al. Nature Method 2018
 
-[^6] Classification of Cancer Types Using Graph Convolutional Neural Networks, Ramirez, Ricardo, et al. Frontiers in Physics 2020
+[6] Classification of Cancer Types Using Graph Convolutional Neural Networks, Ramirez, Ricardo, et al. Frontiers in Physics 2020
 
-[^7] Integration of multiomics data with graph convolutional networks to identify new cancer genes and their associated molecular mechanisms, Roman Schulte-Sasse et al. Nature Machine Intelligence 2021
+[7] Integration of multiomics data with graph convolutional networks to identify new cancer genes and their associated molecular mechanisms, Roman Schulte-Sasse et al. Nature Machine Intelligence 2021
 
-[^8] Representation Learning for Networks in Biology and Medicine: Advancements, Challenges, and Opportunities, Michelle M. Li et al. arXiv preprint arXiv:2104.04883.
+[8] Representation Learning for Networks in Biology and Medicine: Advancements, Challenges, and Opportunities, Michelle M. Li et al. arXiv preprint arXiv:2104.04883.
 
 
 
