@@ -1,5 +1,7 @@
 # CancerGNN: A deep graph learning pipeline for genomic data analysis
 
+[![Python 3.9.7](https://img.shields.io/badge/python-3.9.7-yellow.svg)](https://www.python.org/downloads/release/python-397/)
+
 ## Installation
 
 ### Conda
