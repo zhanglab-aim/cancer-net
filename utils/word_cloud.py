@@ -3,7 +3,8 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import numpy as np
 
-def cloud(fled_score,fled_gene):
+
+def cloud(fled_score, fled_gene):
     d = {}
     for i in range(len(fled_gene)):
         d[fled_gene[i]] = fled_score[i]
@@ -18,9 +19,7 @@ def cloud(fled_score,fled_gene):
     fled_score.sort()
     plt.figure()
     plt.hist(fled_score, bins=20)
-    plt.xlabel('Gene importance', fontsize=16)
-    plt.ylabel('Population', fontsize=16)
+    plt.xlabel("Gene importance", fontsize=16)
+    plt.ylabel("Population", fontsize=16)
     plt.show()
-
-
 

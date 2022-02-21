@@ -6,8 +6,9 @@ from sklearn.cluster import k_means
 def cluster_dict(labels):
     community = dict()
     for c in set(labels):
-        community[c] = np.where(labels==c)[0]
+        community[c] = np.where(labels == c)[0]
     return community
+
 
 def kmeans(cmat):
     N = cmat.shape[0] // 50
@@ -18,7 +19,9 @@ def kmeans(cmat):
     # removing the across community edges
     cmat3 = np.zeros(cmat.shape)
     for l in label1:
-        cmat3[np.ix_(community1[l], community1[l])] = np.copy(cmat[np.ix_(community1[l], community1[l])])
+        cmat3[np.ix_(community1[l], community1[l])] = np.copy(
+            cmat[np.ix_(community1[l], community1[l])]
+        )
 
     # thresholding on cmat3
     res = np.copy(cmat3)

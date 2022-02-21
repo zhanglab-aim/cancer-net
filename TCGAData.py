@@ -25,6 +25,7 @@ from collections import defaultdict
 
 dataroot = os.path.join(os.path.dirname(__file__))
 
+
 class TCGADataset(InMemoryDataset):
     # TT: self.name was missing, making __repr__ invalid
     def __init__(self, root, transform=None, pre_transform=None, name="tcga"):
@@ -35,14 +36,14 @@ class TCGADataset(InMemoryDataset):
 
     @property
     def raw_file_names(self):
-        data_dir = osp.join(self.root,'raw')
+        data_dir = osp.join(self.root, "raw")
         onlyfiles = [f for f in listdir(data_dir) if osp.isfile(osp.join(data_dir, f))]
         onlyfiles.sort()
         return onlyfiles
 
     @property
     def processed_file_names(self):
-        return  'data.pt'
+        return "data.pt"
 
     def download(self):
         # Download to `self.raw_dir`.
@@ -52,29 +53,38 @@ class TCGADataset(InMemoryDataset):
         # Read data into huge `Data` list.
         # we load gene names from Human Base #
         start_time = time.time()
-        if os.path.exists(dataroot+'/graph/brain_org_network.pickle'):
-            with open(dataroot+'/graph/brain_org_network.pickle', 'rb') as f:
+        if os.path.exists(dataroot + "/graph/brain_org_network.pickle"):
+            with open(dataroot + "/graph/brain_org_network.pickle", "rb") as f:
                 edge_dict = pickle.load(f)
             f.close()
         else:
             start_time = time.time()
-            file_brain = dataroot + './graph/brain.geneSymbol.gz'
+            file_brain = dataroot + "./graph/brain.geneSymbol.gz"
             edge_dict = defaultdict(dict)
-            with gzip.open(file_brain, 'rb') as f:
+            with gzip.open(file_brain, "rb") as f:
                 file_content = f.read()
                 for x in file_content.split(b"\n")[:-1]:
-                    edge_dict[x.split(b'\t')[0].decode('ascii')][x.split(b'\t')[1].decode('ascii')] = float(
-                        x.split(b'\t')[2])
-                    edge_dict[x.split(b'\t')[1].decode('ascii')][x.split(b'\t')[0].decode('ascii')] = float(
-                        x.split(b'\t')[2])
+                    edge_dict[x.split(b"\t")[0].decode("ascii")][
+                        x.split(b"\t")[1].decode("ascii")
+                    ] = float(x.split(b"\t")[2])
+                    edge_dict[x.split(b"\t")[1].decode("ascii")][
+                        x.split(b"\t")[0].decode("ascii")
+                    ] = float(x.split(b"\t")[2])
                 f.close()
-            with open(dataroot + './graph/brain_org_network.pickle', 'wb') as f:
+            with open(dataroot + "./graph/brain_org_network.pickle", "wb") as f:
                 pickle.dump(edge_dict, f, pickle.HIGHEST_PROTOCOL)
             f.close()
-        print("--- load human base brain network %s seconds ---" % (time.time() - start_time))
+        print(
+            "--- load human base brain network %s seconds ---"
+            % (time.time() - start_time)
+        )
 
-        self.samples = [f for f in listdir(join(self.root, 'raw')) if isfile(join(self.root, 'raw', f)) and f.startswith('TCGA') ]
-        self.data, self.slices = read_data(self.samples,edge_dict)
+        self.samples = [
+            f
+            for f in listdir(join(self.root, "raw"))
+            if isfile(join(self.root, "raw", f)) and f.startswith("TCGA")
+        ]
+        self.data, self.slices = read_data(self.samples, edge_dict)
 
         if self.pre_filter is not None:
             data_list = [self.get(idx) for idx in range(len(self))]
@@ -89,4 +99,4 @@ class TCGADataset(InMemoryDataset):
         torch.save((self.data, self.slices), self.processed_paths[0])
 
     def __repr__(self):
-        return '{}({})'.format(self.name, len(self))
+        return "{}({})".format(self.name, len(self))

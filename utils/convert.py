@@ -36,7 +36,6 @@ import torch_geometric.data
 #     return out
 
 
-
 def from_scipy_sparse_matrix(A):
     r"""Converts a scipy sparse matrix to edge indices and edge attributes.
 
@@ -51,9 +50,9 @@ def from_scipy_sparse_matrix(A):
     return edge_index, edge_weight
 
 
-
-def to_networkx(data, node_attrs=None, edge_attrs=None, to_undirected=False,
-                remove_self_loops=False):
+def to_networkx(
+    data, node_attrs=None, edge_attrs=None, to_undirected=False, remove_self_loops=False
+):
     r"""Converts a :class:`torch_geometric.data.Data` instance to a
     :obj:`networkx.Graph` if :attr:`to_undirected` is set to :obj:`True`, or
     a directed :obj:`networkx.DiGraph` otherwise.
@@ -98,7 +97,7 @@ def to_networkx(data, node_attrs=None, edge_attrs=None, to_undirected=False,
 
         G.add_edge(u, v)
         for key in edge_attrs if edge_attrs is not None else []:
-            if values[key][i]!=0:
+            if values[key][i] != 0:
                 G[u][v][key] = values[key][i]
 
     for key in node_attrs if node_attrs is not None else []:
@@ -106,7 +105,6 @@ def to_networkx(data, node_attrs=None, edge_attrs=None, to_undirected=False,
             feat_dict.update({key: values[key][i]})
 
     return G
-
 
 
 def from_networkx(G):
@@ -137,12 +135,11 @@ def from_networkx(G):
         except ValueError:
             pass
 
-    data['edge_index'] = edge_index.view(2, -1)
+    data["edge_index"] = edge_index.view(2, -1)
     data = torch_geometric.data.Data.from_dict(data)
     data.num_nodes = G.number_of_nodes()
 
     return data
-
 
 
 def to_trimesh(data):
@@ -153,10 +150,12 @@ def to_trimesh(data):
         data (torch_geometric.data.Data): The data object.
     """
     import trimesh
-    return trimesh.Trimesh(vertices=data.pos.detach().cpu().numpy(),
-                           faces=data.face.detach().t().cpu().numpy(),
-                           process=False)
 
+    return trimesh.Trimesh(
+        vertices=data.pos.detach().cpu().numpy(),
+        faces=data.face.detach().t().cpu().numpy(),
+        process=False,
+    )
 
 
 def from_trimesh(mesh):
@@ -172,9 +171,9 @@ def from_trimesh(mesh):
     return torch_geometric.data.Data(pos=pos, face=face)
 
 
-
-def to_cugraph(edge_index: Tensor, edge_weight: Optional[Tensor] = None,
-               relabel_nodes: bool = True):
+def to_cugraph(
+    edge_index: Tensor, edge_weight: Optional[Tensor] = None, relabel_nodes: bool = True
+):
     r"""Converts a graph given by :obj:`edge_index` and optional
     :obj:`edge_weight` into a :obj:`cugraph` graph object.
 
@@ -193,10 +192,12 @@ def to_cugraph(edge_index: Tensor, edge_weight: Optional[Tensor] = None,
         df[2] = cudf.from_dlpack(to_dlpack(edge_weight))
 
     return cugraph.from_cudf_edgelist(
-        df, source=0, destination=1,
+        df,
+        source=0,
+        destination=1,
         edge_attr=2 if edge_weight is not None else None,
-        renumber=relabel_nodes)
-
+        renumber=relabel_nodes,
+    )
 
 
 def from_cugraph(G) -> Tuple[Tensor, Optional[Tensor]]:
@@ -205,12 +206,12 @@ def from_cugraph(G) -> Tuple[Tensor, Optional[Tensor]]:
     """
     df = G.edgelist.edgelist_df
 
-    src = from_dlpack(df['src'].to_dlpack()).long()
-    dst = from_dlpack(df['dst'].to_dlpack()).long()
+    src = from_dlpack(df["src"].to_dlpack()).long()
+    dst = from_dlpack(df["dst"].to_dlpack()).long()
     edge_index = torch.stack([src, dst], dim=0)
 
     edge_weight = None
-    if 'weights' in df:
-        edge_weight = from_dlpack(df['weights'].to_dlpack())
+    if "weights" in df:
+        edge_weight = from_dlpack(df["weights"].to_dlpack())
 
     return edge_index, edge_weight
