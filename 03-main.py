@@ -1,5 +1,8 @@
 import os
 import argparse
+from types import SimpleNamespace
+
+from typing import Iterable, Callable, Tuple
 
 import numpy as np
 import torch
@@ -17,9 +20,27 @@ from TCGAData import TCGADataset
 from arch.net import *
 
 
-def train(model, epoch, train_loader, optimizer, criterion, opt):
+def train(
+    model: torch.nn.Module,
+    epoch: int,
+    train_loader: Iterable,
+    optimizer: torch.optim.Optimizer,
+    criterion: Callable,
+    opt: SimpleNamespace,
+) -> Tuple[float, float]:
+    """Train a model.
+    
+    :param model: model to train
+    :param epoch: current epoch number
+    :param train_loader: loader for training data
+    :param optimizer: PyTorch optimizer
+    :param criterion: objective function
+    :param opt: namespace of command-line arguments (needs `opt.lr` and `opt.parall`)
+    :return: tuple `(avg_loss, avg_correct)`
+    """
     model.train()
 
+    # learning rate schedule
     if epoch == 30:
         for param_group in optimizer.param_groups:
             param_group["lr"] = opt.lr * 0.5
@@ -34,6 +55,8 @@ def train(model, epoch, train_loader, optimizer, criterion, opt):
     for data in train_loader:
         if not opt.parall:
             data = data.to(device)
+
+        # run the model, collect the output
         optimizer.zero_grad()
 
         output, _, _ = model(data)
@@ -44,28 +67,41 @@ def train(model, epoch, train_loader, optimizer, criterion, opt):
         else:
             y = data.y
 
-        # TT: GCN and GCN2 return different shapes?
+        # TT: GCN and GCN2 return different shapes, apparently?
         if len(output.shape) == 1:
             output = output.unsqueeze(0)
+
+        # calculate loss, backpropagate
         loss = criterion(output, y)
-
-        pred = output.max(1)[1]
-        correct += pred.eq(y).sum().item()
-        total_loss += loss
-        total_samples += len(y)
-
         loss.backward()
         optimizer.step()
 
+        # update accuracy counters
+        pred = output.max(1)[1]
+        correct += pred.eq(y).sum().item()
+        total_loss += loss
+
+        # keep track of total number of samples
+        total_samples += len(y)
+
+    # calculate averages
     avg_loss = total_loss / len(train_loader)
     avg_correct = correct / total_samples
 
+    # display progress
     print(f"Epoch: {epoch:02d}, Loss: {avg_loss:.4f}, Train Acc: {avg_correct:.4f}")
 
     return avg_loss, avg_correct
 
 
-def test(model, test_loader, opt):
+def test(model: torch.nn.Module, test_loader: Iterable, opt: SimpleNamespace) -> float:
+    """Test a model.
+    
+    :param model: model to test
+    :param test_loader: loader for test data
+    :param opt: namespace of command-line arguments (`opt.parall`)
+    :return: average correct predictions
+    """
     model.eval()
 
     correct = 0
@@ -73,18 +109,24 @@ def test(model, test_loader, opt):
     for data in test_loader:
         if not opt.parall:
             data = data.to(device)
+
+        # run the model, collect the output
         output, _, _ = model(data)
         output = output.squeeze()
 
-        pred = output.max(1)[1]
         if opt.parall:
             y = torch.cat([d.y for d in data]).to(output.device)
         else:
             y = data.y
 
+        # update accuracy counter
+        pred = output.max(1)[1]
         correct += pred.eq(y).sum().item()
+
+        # keep track of total number of samples
         total_samples += len(y)
 
+    # calculate average
     avg_correct = correct / total_samples
     return avg_correct
 
@@ -130,23 +172,13 @@ if __name__ == "__main__":
     # define conversion from string to numeric labels for each dataset
     # TT: maybe these would be better stored in a file?
     all_label_mappings = {
-        "brain": {
-            # GBM: glioblastoma and patients die within a few months
-            # LGG: low grade glioma and is assumed to be much more benign
-            "GBM": 1,
-            "LGG": 0,
-        },
-        "kidney": {
-            # XXX these are guessed based on slides, should double check!!
-            "KICH": 1,
-            "KIRC": 1,
-            "KIRP": 0,
-        },
-        "lung": {
-            # XXX these are guessed based on slides, should double check!!
-            "LUAD": 1,
-            "LUSC": 0,
-        },
+        # GBM: glioblastoma and patients die within a few months
+        # LGG: low grade glioma and is assumed to be much more benign
+        "brain": {"GBM": 1, "LGG": 0,},
+        # XXX these are guessed based on slides, should double check!!
+        "kidney": {"KICH": 1, "KIRC": 1, "KIRP": 0,},
+        # XXX these are guessed based on slides, should double check!!
+        "lung": {"LUAD": 1, "LUSC": 0,},
     }
 
     # load the data
@@ -164,13 +196,11 @@ if __name__ == "__main__":
         raise ValueError(f"Unknown architecture: {opt.arch}.")
     print(dataset)
 
-    # show number of mutated genes per sample
+    # make and save figure with number of mutated genes per sample
     num_nodes_all = []
     for i, data in enumerate(dataset):
         num_nodes_all.append(data.x.shape[0])
 
-    # save a histogram of number of nodes per sample
-    # TT: not sure this makes sense here
     fig, ax = plt.subplots(constrained_layout=True)
     bin_max = 10 ** (np.ceil(np.log10(np.max(num_nodes_all))))
     ax.hist(num_nodes_all, bins=np.geomspace(1, bin_max, 20))
@@ -227,7 +257,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     criterion = F.nll_loss
 
-    # train
+    # train and test
     train_losses = []
     train_acces = []
     test_acces = []
