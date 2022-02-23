@@ -1,91 +1,99 @@
-from torch_geometric.data import InMemoryDataset
-from torch_geometric.data import Data
-from os import listdir
 import os.path as osp
-from build_graph_ref import read_data
-
-import torch
-import numpy as np
-import pandas as pd
-import networkx as nx
-from networkx.convert_matrix import from_numpy_matrix
-from torch_sparse import coalesce
-from torch_geometric.utils import remove_self_loops
-import deepdish as dd
-from os import listdir
-from os.path import isfile, join
-
 import time
+
 import pickle
-import h5py
 import gzip
-import time
-import os
+
 from collections import defaultdict
 
-dataroot = os.path.join(os.path.dirname(__file__))
+import torch
+from torch_geometric.data import InMemoryDataset
+from build_graph_ref import read_data
 
 
 class TCGADataset(InMemoryDataset):
-    # TT: self.name was missing, making __repr__ invalid
-    def __init__(self, root, transform=None, pre_transform=None, name="tcga"):
-        super(TCGADataset, self).__init__(root, transform, pre_transform)
-        self.root = root
+    def __init__(
+        self,
+        root,
+        files,
+        label_mapping,
+        transform=None,
+        pre_transform=None,
+        name="tcga",
+        suffix="",
+        gene_graph="gene_graph.gz",
+    ):
         self.name = name
+        self.files = files
+        self.suffix = suffix
+        self.gene_graph = gene_graph
+
+        if isinstance(label_mapping, dict):
+            self.label_mapping = label_mapping
+        else:
+            self.label_mapping = {_: i for i, _ in enumerate(label_mapping)}
+
+        super(TCGADataset, self).__init__(root, transform, pre_transform)
+
+        # the base-class constructor generates the processed file if it is missing
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
     def raw_file_names(self):
-        data_dir = osp.join(self.root, "raw")
-        onlyfiles = [f for f in listdir(data_dir) if osp.isfile(osp.join(data_dir, f))]
-        onlyfiles.sort()
-        return onlyfiles
+        return self.files
 
     @property
     def processed_file_names(self):
         return "data.pt"
 
-    def download(self):
-        # Download to `self.raw_dir`.
-        return
+    @property
+    def processed_dir(self) -> str:
+        processed_name = "processed"
+        if len(self.suffix) > 0:
+            processed_name += "_" + self.suffix
+        return osp.join(self.root, processed_name)
 
     def process(self):
-        # Read data into huge `Data` list.
-        # we load gene names from Human Base #
+        # this only gets called if a saved verison of the processed dataset is not found
+
+        # load gene graph (e.g., from HumanBase)
+        graph_file = osp.join(self.root, self.gene_graph)
+        graph_noext, _ = osp.splitext(graph_file)
+        graph_pickle = graph_noext + ".pkl"
+
         start_time = time.time()
-        if os.path.exists(dataroot + "/graph/brain_org_network.pickle"):
-            with open(dataroot + "/graph/brain_org_network.pickle", "rb") as f:
+        if osp.exists(graph_pickle):
+            # load pre-parsed version
+            with open(graph_pickle, "rb") as f:
                 edge_dict = pickle.load(f)
-            f.close()
         else:
-            start_time = time.time()
-            file_brain = dataroot + "./graph/brain.geneSymbol.gz"
+            # parse the tab-separated file
             edge_dict = defaultdict(dict)
-            with gzip.open(file_brain, "rb") as f:
-                file_content = f.read()
-                for x in file_content.split(b"\n")[:-1]:
-                    edge_dict[x.split(b"\t")[0].decode("ascii")][
-                        x.split(b"\t")[1].decode("ascii")
-                    ] = float(x.split(b"\t")[2])
-                    edge_dict[x.split(b"\t")[1].decode("ascii")][
-                        x.split(b"\t")[0].decode("ascii")
-                    ] = float(x.split(b"\t")[2])
-                f.close()
-            with open(dataroot + "./graph/brain_org_network.pickle", "wb") as f:
+            with gzip.open(graph_file, "rt") as f:
+                for line in f:
+                    elems = line.strip().split("\t")
+                    if len(elems) == 0:
+                        continue
+
+                    assert len(elems) == 3
+
+                    # symmetrize, since the initial graph contains edges in only one dir
+                    edge_dict[elems[0]][elems[1]] = float(elems[2])
+                    edge_dict[elems[1]][elems[0]] = float(elems[2])
+
+            # save pickle for faster loading next time
+            with open(graph_pickle, "wb") as f:
                 pickle.dump(edge_dict, f, pickle.HIGHEST_PROTOCOL)
-            f.close()
-        print(
-            "--- load human base brain network %s seconds ---"
-            % (time.time() - start_time)
+
+        print(f"loading gene graph took {time.time() - start_time:.2f} seconds.")
+
+        # load the data
+        full_file_names = [osp.join(self.raw_dir, _) for _ in self.raw_file_names]
+        self.data, self.slices = read_data(
+            full_file_names, edge_dict, self.label_mapping
         )
 
-        self.samples = [
-            f
-            for f in listdir(join(self.root, "raw"))
-            if isfile(join(self.root, "raw", f)) and f.startswith("TCGA")
-        ]
-        self.data, self.slices = read_data(self.samples, edge_dict)
-
+        # pre-filter and/or pre-transform, if necessary
         if self.pre_filter is not None:
             data_list = [self.get(idx) for idx in range(len(self))]
             data_list = [data for data in data_list if self.pre_filter(data)]
@@ -96,7 +104,10 @@ class TCGADataset(InMemoryDataset):
             data_list = [self.pre_transform(data) for data in data_list]
             self.data, self.slices = self.collate(data_list)
 
+        # save the processed dataset for later use
         torch.save((self.data, self.slices), self.processed_paths[0])
 
     def __repr__(self):
-        return "{}({})".format(self.name, len(self))
+        return "TCGADataset(name={}, len={}, suffix={})".format(
+            self.name, len(self), self.suffix
+        )

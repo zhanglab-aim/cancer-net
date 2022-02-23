@@ -2,6 +2,7 @@
 TCGAData.py calls the functions in this script. The threshold is hard coding here
 """
 
+from logging import warning
 import torch
 import numpy as np
 from scipy.io import loadmat
@@ -27,6 +28,8 @@ import gzip
 import time
 import os
 from collections import defaultdict
+
+import mygene
 
 # ---------- Load Preprocessed ---------#
 # ---- RUN 02-transfer_hb_graph.py which saves the filtered 'graph/brain_th{}.h5' -----#
@@ -100,19 +103,17 @@ class NoDaemonContext(type(multiprocessing.get_context())):
 # because the latter is only a wrapper function, not a proper class.
 
 
-def read_data(samples, edge_dict):
+def read_data(samples, edge_dict, label_mapping):
     batch = []
     num_node_list = []
     y_list = []
     edge_att_list, edge_index_list, att_list = [], [], []
     res = []
 
-    import timeit
-
-    start = timeit.default_timer()
+    start = time.time()
     for s in samples:
         try:
-            a = read_sigle_data(s, edge_dict)
+            a = read_single_data(s, edge_dict, label_mapping)
             if a is None:
                 print("invalid sample: %s" % s)
                 continue
@@ -122,9 +123,9 @@ def read_data(samples, edge_dict):
             print("error while processing %s" % s)
             raise e
 
-    stop = timeit.default_timer()
+    stop = time.time()
 
-    print("Time: ", stop - start)
+    print(f"Loading dataset took {stop - start:.2f} seconds.")
 
     for j in range(len(res)):
         edge_att_list.append(res[j][0])
@@ -160,34 +161,53 @@ def read_data(samples, edge_dict):
     return data, slices
 
 
-def read_sigle_data(sample, edge_dict):
+def read_single_data(sample, edge_dict, label_mapping, only_mutated=True):
     try:
-        data = h5py.File(join(path, sample), "r")
-        # print(path,data.keys())
+        data = h5py.File(sample, "r")
     except OSError:
-        print("we do not see the samples", join(path, sample))
-    # print(data.keys())
-    # nodes = data['meta']['gene_symbol'][()] # np array, dim = 10463    fea1 = data['data']['promoter'][()] # np array, dim (10463, 64), noncoding feature
-    # nodes = data['meta']['gene_list'][()] # b'ENSG00000188976.11' is ensembl ID and 188976 is entrez ID, using https://nbviewer.jupyter.org/gist/newgene/6771106 can transfer id to name
-    fea0 = data["data"]["promoter"][()]  # np array, dim (10463, 64), noncoding feature
-    fea1 = data["data"]["protein"][()]  # np array, dim (10463, 64), coding feature
-    fea = np.concatenate([fea0, fea1], axis=1)
+        warning(f"Cannot load sample file: {sample}.")
 
-    # find the gene without any mutation in fea
-    EPS = 1e-8
-
-    diff = np.sum(np.abs(ref_fea - fea), axis=1)
-    mu_id = np.where(diff > EPS)[0]
-    if len(mu_id) == 0:
+    if "data" not in data:
         return None
 
-    # get node features
-    att = fea[mu_id, :]  # alternatively, we can do fea[mu_id,:] - ref_fea[mu_id,:]
+    fea0 = data["data"]["promoter"][()]  # 64-column, noncoding features
+    fea1 = data["data"]["protein"][()]  # 64-column, coding features
+    fea = np.concatenate([fea0, fea1], axis=1)
 
-    # construct graph structure
+    if not only_mutated:
+        # find the gene without any mutation in fea
+        EPS = 1e-8
 
-    # ----first we  select the mutated gene name from TCGA's gene names ---#
-    mu_gene_name = gene_name[mu_id]
+        diff = np.sum(np.abs(ref_fea - fea), axis=1)
+        mu_id = np.where(diff > EPS)[0]
+        if len(mu_id) == 0:
+            return None
+
+        # get node features
+        att = fea[mu_id, :]  # alternatively, we can do fea[mu_id,:] - ref_fea[mu_id,:]
+
+        # construct graph structure
+
+        # ----first we  select the mutated gene name from TCGA's gene names ---#
+        mu_gene_name = gene_name[mu_id]
+    else:
+        # get the list of mutated genes in Ensembl format
+        # need to convert bytes to str and remove the version number (part after ".")
+        ensembl_gene_names = [
+            _.decode("utf-8").split(".")[0]
+            for _ in data["meta"]["mutated_gene_list"][()]
+        ]
+
+        # now convert to HGNC symbols
+        mg = mygene.MyGeneInfo()
+        mg_results = mg.querymany(ensembl_gene_names, fields="symbol", verbose=False)
+
+        hgnc_names = [_["symbol"] for _ in mg_results if "symbol" in _]
+        mu_gene_name = hgnc_names
+
+        # some gene names are not found -- not entirely sure why; errors in the data?
+        mask = ["symbol" in _ for _ in mg_results]
+        att = fea[mask, :]
 
     # --- third match assign the HB links to TCGA mutated genes ---#
     cmat = np.zeros((len(mu_gene_name), len(mu_gene_name)))
@@ -222,10 +242,8 @@ def read_sigle_data(sample, edge_dict):
     edge_index, edge_att = coalesce(edge_index, edge_att, num_nodes, num_nodes)
 
     # get graph labels
-    if data["label"]["sample_meta"]["tumor"][()] == b"GBM":
-        label = 1  # GBM: glioblastoma and patients die within a few months.
-    else:
-        label = 0  # LGG: low grade glioma and is assumed to be much more benign
+    label_str = data["label"]["sample_meta"]["tumor"][()]
+    label = label_mapping[label_str]
 
     data.close()
     return edge_att.data.numpy(), edge_index.data.numpy(), att, label, num_nodes
@@ -262,7 +280,7 @@ if __name__ == "__main__":
     start_time = time.time()
     for s in samples:
         try:
-            read_sigle_data(s, edge_dict)
+            read_single_data(s, edge_dict)
         except nx.exception.NetworkXError:
             print(s)
     print("--- read file %s seconds ---" % (time.time() - start_time))
