@@ -31,6 +31,7 @@ def train(model, epoch, train_loader, optimizer, criterion, opt):
 
     total_loss = 0
     correct = 0
+    total_samples = 0
     for data in train_loader:
         if not opt.parall:
             data = data.to(device)
@@ -52,21 +53,24 @@ def train(model, epoch, train_loader, optimizer, criterion, opt):
         pred = output.max(1)[1]
         correct += pred.eq(y).sum().item()
         total_loss += loss
+        total_samples += len(y)
+
         loss.backward()
         optimizer.step()
-    print(
-        "Epoch: {:02d}, Loss: {:.4f}, Train Acc: {:.4f}".format(
-            epoch, total_loss / len(train_loader), correct / len(train_loader.dataset)
-        )
-    )
 
-    return total_loss / len(train_loader), correct / len(train_loader.dataset)
+    avg_loss = total_loss / len(train_loader)
+    avg_correct = correct / total_samples
+
+    print(f"Epoch: {epoch:02d}, Loss: {avg_loss:.4f}, Train Acc: {avg_correct:.4f}")
+
+    return avg_loss, avg_correct
 
 
 def test(model, test_loader, opt):
     model.eval()
-    correct = 0
 
+    correct = 0
+    total_samples = 0
     for data in test_loader:
         if not opt.parall:
             data = data.to(device)
@@ -80,7 +84,10 @@ def test(model, test_loader, opt):
             y = data.y
 
         correct += pred.eq(y).sum().item()
-    return correct / len(test_loader.dataset)
+        total_samples += len(y)
+
+    avg_correct = correct / total_samples
+    return avg_correct
 
 
 if __name__ == "__main__":
@@ -106,10 +113,6 @@ if __name__ == "__main__":
     )
     opt = parser.parse_args()
     print(opt)
-
-    # read data file names
-    dataroot = os.path.join("data", opt.dataset)
-    samples_file = os.path.join(dataroot, "samples.txt")
 
     # choose device
     if opt.gpu:
@@ -145,12 +148,8 @@ if __name__ == "__main__":
     }
 
     # load the data
-    common_kwargs = {
-        "root": dataroot,
-        "files": samples_file,
-        "label_mapping": all_label_mappings[opt.dataset],
-        "name": opt.dataset,
-    }
+    dataroot = os.path.join("data", opt.dataset)
+    common_kwargs = {"root": dataroot, "label_mapping": all_label_mappings[opt.dataset]}
     if opt.arch == "GCN2":
         # GCN2 requires data to be in a sparse format
         pre_transform = T.Compose([T.GCNNorm(), T.ToSparseTensor()])
@@ -161,6 +160,7 @@ if __name__ == "__main__":
         dataset = TCGADataset(**common_kwargs)
     else:
         raise ValueError(f"Unknown architecture: {opt.arch}.")
+    print(dataset)
 
     # identify samples where the number of nodes is not more than 2x the number of GPUs
     # (number of nodes = number of mutated genes)
@@ -184,8 +184,10 @@ if __name__ == "__main__":
     mask[single_node_samples] = 0
     dataset = dataset[mask]
 
-    train_indices = list(range(300)) + list(range(600, len(dataset)))
-    test_indices = list(range(300, 600))
+    train_indices = list(range(len(dataset) // 3)) + list(
+        range(2 * len(dataset) // 3, len(dataset))
+    )
+    test_indices = list(range(len(dataset) // 3, 2 * len(dataset) // 3))
     # if parall -->
     # train_loader = DataListLoader(dataset, batch_size=opt.batch, sampler=SubsetRandomSampler(train_indices),drop_last=True)
     # test_loader = DataListLoader(dataset, batch_size=opt.batch, sampler=SubsetRandomSampler(test_indices),drop_last=True)
