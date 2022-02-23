@@ -109,9 +109,7 @@ if __name__ == "__main__":
 
     # read data file names
     dataroot = os.path.join("data", opt.dataset)
-    with open(os.path.join(dataroot, "samples.txt"), "rt") as f:
-        samples = [_.strip() for _ in f.readlines()]
-        samples = [_ for _ in samples if len(_) > 0]
+    samples_file = os.path.join(dataroot, "samples.txt")
 
     # choose device
     if opt.gpu:
@@ -149,7 +147,7 @@ if __name__ == "__main__":
     # load the data
     common_kwargs = {
         "root": dataroot,
-        "files": samples,
+        "files": samples_file,
         "label_mapping": all_label_mappings[opt.dataset],
         "name": opt.dataset,
     }

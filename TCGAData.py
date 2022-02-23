@@ -24,9 +24,15 @@ class TCGADataset(InMemoryDataset):
         gene_graph="gene_graph.gz",
     ):
         self.name = name
-        self.files = files
         self.suffix = suffix
         self.gene_graph = gene_graph
+
+        if isinstance(files, (list, tuple)):
+            self.files = files
+        else:
+            with open(files, "rt") as f:
+                self.files = [_.strip() for _ in f.readlines()]
+                self.files = [_ for _ in self.files if len(_) > 0]
 
         if isinstance(label_mapping, dict):
             self.label_mapping = label_mapping
