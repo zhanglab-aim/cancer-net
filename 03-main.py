@@ -1,6 +1,7 @@
 import os
 import argparse
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch_geometric.transforms as T
@@ -171,8 +172,10 @@ if __name__ == "__main__":
     # save a histogram of number of nodes per sample
     # TT: not sure this makes sense here
     fig, ax = plt.subplots(constrained_layout=True)
-    ax.hist(num_nodes_all, bins=20)
+    bin_max = 10 ** (np.ceil(np.log10(np.max(num_nodes_all))))
+    ax.hist(num_nodes_all, bins=np.geomspace(1, bin_max, 20))
     ax.set_xlabel("number of mutated genes")
+    ax.set_xscale("log")
     fig.savefig(os.path.join("figures", "num_nodes.png"))
 
     # perform a train / test split
