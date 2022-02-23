@@ -27,7 +27,12 @@ If having trouble with `pyg`, try the instructions [here](https://pytorch-geomet
 
 ## Running
 
-Training, testing and explaination are integrated in file `03-main.py`. To run
+Ensure that the proper data is placed in subfolders of `data`. The `samples.txt` in each
+of the three existing subfolders, `brain`, `kidney`, and `lung`, indicate which files
+from the TCGA dataset are used. In addition to the TCGA raw files, each `data` subfolder
+needs to contain a gene graph called `gene_graph.gz`.
+
+Training and testing can be achieved using `03-main.py`. To run
 
 ``` python 03-main.py ```
 
@@ -36,29 +41,6 @@ Use
 ``` python 03-main.py --help ```
 
 for options.
-
-## Folder structure -- this will change soon
-```
-.
-├── data
-│     └──raw                    # please put all the raw TCGA data here 
-│     └──processed              # this will save the processed data via TCGAData.py
-│
-│
-├──CancerGNN
-    └──graph                    # intermediate files towards constructing the gene graph
-    └──utils                    # a few util functions
-    │    └──GNNExplainer.py     # explain the important subgraphs
-    │    └──convert.py          # graph format transformation
-    │    └──word_cloud.py       # visualize gene importance as word cloud
-    └──arch                     # a few util functions
-    │    └──net.py              # define the gnn models 
-    └──01.py                    # convert gene ID encoding methods ( HumanBase and TCGA are not aligend)
-    └──02.py                    # load human base graph into defualtdict piclke 
-    └──03.py                    # main script that contains loading data, training, testing and explaination. it will call TCGAData.py, net.py
-    └──TCGAData.py              # Define the pyg graph dataset class for TCGA data. it will call build_graph.py
-    └──build_graph_ref.py       # build graph structure with minusing reference gene
-```
 
 ## Outline
 
