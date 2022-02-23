@@ -160,28 +160,19 @@ if __name__ == "__main__":
         raise ValueError(f"Unknown architecture: {opt.arch}.")
     print(dataset)
 
-    # identify samples where the number of nodes is not more than 2x the number of GPUs
-    # (number of nodes = number of mutated genes)
-    # TT: why?
-    single_node_samples = []
+    # show number of mutated genes per sample
     num_nodes_all = []
     for i, data in enumerate(dataset):
         num_nodes_all.append(data.x.shape[0])
-        if data.x.shape[0] <= 2 * torch.cuda.device_count():  # in case in parall gpus
-            single_node_samples.append(i)
 
     # save a histogram of number of nodes per sample
     # TT: not sure this makes sense here
-    plt.figure()
-    plt.hist(np.array(num_nodes_all), bins=50)
-    plt.savefig("figures/num_nodes.png")
+    fig, ax = plt.subplots(constrained_layout=True)
+    ax.hist(num_nodes_all, bins=20)
+    ax.set_xlabel("number of mutated genes")
+    fig.savefig(os.path.join("figures", "num_nodes.png"))
 
-    # choose only datasets that don't fit on single nodes (according to def above)
-    # TT: why?!
-    mask = torch.ones(len(dataset), dtype=torch.bool)
-    mask[single_node_samples] = 0
-    dataset = dataset[mask]
-
+    # perform a train / test split
     train_indices = list(range(len(dataset) // 3)) + list(
         range(2 * len(dataset) // 3, len(dataset))
     )
@@ -246,12 +237,12 @@ if __name__ == "__main__":
         print("Test Acc: {:.4f}".format(test_acc))
 
     # save training and test learning curves
-    plt.figure()
-    plt.plot(train_acces, label="train acc", linewidth=3)
-    plt.plot(test_acces, label="test acc", linewidth=3)
-    plt.plot(train_losses, "k--", label="train loss", linewidth=3)
-    plt.legend(prop={"size": 16})
-    plt.xlabel("epoch", fontsize=16)
-    plt.savefig("figures/training.png")
+    fig, ax = plt.subplots(constrained_layout=True)
+    ax.plot(train_acces, label="train acc", linewidth=3)
+    ax.plot(test_acces, label="test acc", linewidth=3)
+    ax.plot(train_losses, "k--", label="train loss", linewidth=3)
+    ax.legend(prop={"size": 16}, frameon=False)
+    ax.set_xlabel("epoch", fontsize=16)
+    fig.savefig(os.path.join("figures", "training.png"))
 
     print("finished")
