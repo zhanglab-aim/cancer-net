@@ -254,7 +254,7 @@ if __name__ == "__main__":
     plt.plot(train_losses, "k--", label="train loss", linewidth=3)
     plt.legend(prop={"size": 16})
     plt.xlabel("epoch", fontsize=16)
-    plt.savefig("training.png")
+    plt.savefig("figures/training.png")
 
     # TT: not sure what this was supposed to do; it probably won't work without change
     # if opt.explain:
