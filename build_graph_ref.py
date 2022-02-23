@@ -242,8 +242,11 @@ def read_single_data(sample, edge_dict, label_mapping, only_mutated=True):
     edge_index, edge_att = coalesce(edge_index, edge_att, num_nodes, num_nodes)
 
     # get graph labels
-    label_str = data["label"]["sample_meta"]["tumor"][()]
-    label = label_mapping[label_str]
+    label_bytes = data["label"]["sample_meta"]["tumor"][()]
+    try:
+        label = label_mapping[label_bytes]
+    except KeyError:
+        label = label_mapping[label_bytes.decode("utf-8")]
 
     data.close()
     return edge_att.data.numpy(), edge_index.data.numpy(), att, label, num_nodes

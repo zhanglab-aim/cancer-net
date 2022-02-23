@@ -131,19 +131,19 @@ if __name__ == "__main__":
         "brain": {
             # GBM: glioblastoma and patients die within a few months
             # LGG: low grade glioma and is assumed to be much more benign
-            b"GBM": 1,
-            b"LGG": 0,
+            "GBM": 1,
+            "LGG": 0,
         },
         "kidney": {
             # XXX these are guessed based on slides, should double check!!
-            b"KICH": 1,
-            b"KIRC": 1,
-            b"KIRP": 0,
+            "KICH": 1,
+            "KIRC": 1,
+            "KIRP": 0,
         },
         "lung": {
             # XXX these are guessed based on slides, should double check!!
-            b"LUAD": 1,
-            b"LUSC": 0,
+            "LUAD": 1,
+            "LUSC": 0,
         },
     }
 
