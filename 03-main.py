@@ -1,7 +1,6 @@
 import os
 import argparse
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 import torch_geometric.transforms as T
@@ -109,6 +108,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n-epochs", type=int, default=100, help="number of training epochs"
     )
+    parser.add_argument("-seed", type=int, default=0, help="random seed")
     opt = parser.parse_args()
     print(opt)
 
@@ -122,6 +122,9 @@ if __name__ == "__main__":
     else:
         device = "cpu"
     print(f"Device: {device}")
+
+    # ensure reproducibility
+    torch.manual_seed(opt.seed)
 
     # define conversion from string to numeric labels for each dataset
     # TT: maybe these would be better stored in a file?
@@ -173,10 +176,11 @@ if __name__ == "__main__":
     fig.savefig(os.path.join("figures", "num_nodes.png"))
 
     # perform a train / test split
-    train_indices = list(range(len(dataset) // 3)) + list(
-        range(2 * len(dataset) // 3, len(dataset))
-    )
-    test_indices = list(range(len(dataset) // 3, 2 * len(dataset) // 3))
+    shuffled_indices = torch.randperm(len(dataset))
+    n_training = 2 * len(dataset) // 3
+    train_indices = shuffled_indices[:n_training]
+    test_indices = shuffled_indices[n_training:]
+
     # if parall -->
     # train_loader = DataListLoader(dataset, batch_size=opt.batch, sampler=SubsetRandomSampler(train_indices),drop_last=True)
     # test_loader = DataListLoader(dataset, batch_size=opt.batch, sampler=SubsetRandomSampler(test_indices),drop_last=True)
