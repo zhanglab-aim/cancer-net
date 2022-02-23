@@ -15,17 +15,27 @@ class TCGADataset(InMemoryDataset):
     def __init__(
         self,
         root,
-        files,
         label_mapping,
+        files=None,
         transform=None,
         pre_transform=None,
-        name="tcga",
+        name=None,
         suffix="",
         gene_graph="gene_graph.gz",
+        samples_file="samples.txt",
     ):
-        self.name = name
         self.suffix = suffix
         self.gene_graph = gene_graph
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = "tcga_" + osp.basename(root)
+            if len(suffix) > 0:
+                self.name = self.name + "_" + suffix
+
+        if files is None:
+            files = osp.join(root, samples_file)
 
         if isinstance(files, (list, tuple)):
             self.files = files
