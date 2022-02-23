@@ -124,6 +124,6 @@ class TCGADataset(InMemoryDataset):
         torch.save((self.data, self.slices), self.processed_paths[0])
 
     def __repr__(self):
-        return "TCGADataset(name={}, len={}, suffix={})".format(
+        return 'TCGADataset(name={}, len={}, suffix="{}")'.format(
             self.name, len(self), self.suffix
         )
