@@ -1,5 +1,7 @@
+import os
 import os.path as osp
 import time
+import tqdm
 
 from typing import Union, Optional, Callable
 
@@ -122,6 +124,8 @@ class TCGADataset(InMemoryDataset):
     def process(self):
         # this only gets called if a saved verison of the processed dataset is not found
 
+        start_time = time.time()
+
         # load gene graph (e.g., from HumanBase)
         graph_file = osp.join(self.root, self.gene_graph)
         graph_noext, _ = osp.splitext(graph_file)
@@ -136,7 +140,19 @@ class TCGADataset(InMemoryDataset):
             # parse the tab-separated file
             edge_dict = defaultdict(dict)
             with gzip.open(graph_file, "rt") as f:
+                f.seek(0, os.SEEK_END)
+                file_size = f.tell()
+                f.seek(0, os.SEEK_SET)
+
+                pbar = tqdm.tqdm(
+                    total=file_size,
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    mininterval=1.0,
+                    desc="gene graph",
+                )
                 for line in f:
+                    pbar.update(len(line))
                     elems = line.strip().split("\t")
                     if len(elems) == 0:
                         continue
@@ -147,9 +163,14 @@ class TCGADataset(InMemoryDataset):
                     edge_dict[elems[0]][elems[1]] = float(elems[2])
                     edge_dict[elems[1]][elems[0]] = float(elems[2])
 
+                pbar.close()
+
             # save pickle for faster loading next time
+            t0 = time.time()
+            print("Caching the graph as a pickle...", end=None)
             with open(graph_pickle, "wb") as f:
                 pickle.dump(edge_dict, f, pickle.HIGHEST_PROTOCOL)
+            print(f" done (took {time.time() - t0:.2f} seconds).")
 
         print(f"loading gene graph took {time.time() - start_time:.2f} seconds.")
 
@@ -161,17 +182,26 @@ class TCGADataset(InMemoryDataset):
 
         # pre-filter and/or pre-transform, if necessary
         if self.pre_filter is not None:
+            t0 = time.time()
             data_list = [self.get(idx) for idx in range(len(self))]
             data_list = [data for data in data_list if self.pre_filter(data)]
             self.data, self.slices = self.collate(data_list)
+            print(f"Pre-filtering took {time.time() - t0:.2f} seconds.")
 
         if self.pre_transform is not None:
+            t0 = time.time()
             data_list = [self.get(idx) for idx in range(len(self))]
             data_list = [self.pre_transform(data) for data in data_list]
             self.data, self.slices = self.collate(data_list)
+            print(f"Pre-transforming took {time.time() - t0:.2f} seconds.")
 
         # save the processed dataset for later use
+        t0 = time.time()
+        print("Caching processed dataset...", end=None)
         torch.save((self.data, self.slices), self.processed_paths[0])
+        print(f" done (took {time.time() - t0:.2f} seconds).")
+
+        print(f"Full processing pipeline took {time.time() - start_time:.2f} seconds.")
 
     def __repr__(self):
         return f'TCGADataset(name={self.name}, len={len(self)}, suffix="{self.suffix}")'

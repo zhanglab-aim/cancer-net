@@ -2,6 +2,7 @@
 TCGAData.py calls the functions in this script. The threshold is hard coding here
 """
 
+import tqdm
 from logging import warning
 import torch
 import numpy as np
@@ -111,7 +112,7 @@ def read_data(samples, edge_dict, label_mapping):
     res = []
 
     start = time.time()
-    for s in samples:
+    for s in tqdm.tqdm(samples, desc="read samples"):
         try:
             a = read_single_data(s, edge_dict, label_mapping)
             if a is None:
