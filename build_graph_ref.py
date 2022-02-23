@@ -1,56 +1,25 @@
-"""
-TCGAData.py calls the functions in this script. The threshold is hard coding here
-"""
+"""Some helper code for reading TCGA datasets."""
 
+import os
+import time
 import tqdm
-from logging import warning
-import torch
-import numpy as np
-from scipy.io import loadmat
-from torch_geometric.data import Data
-import networkx as nx
-from networkx.convert_matrix import from_numpy_matrix
-import multiprocessing
 
-# import billiard as multiprocessing
+from typing import Tuple
+
+from logging import warning
+
+import h5py
+
+import numpy as np
+from scipy import sparse
+import torch
+from torch_geometric.data import Data
 from torch_sparse import coalesce
 from torch_geometric.utils import remove_self_loops
-from random import shuffle
-from scipy.stats import kurtosis, skew
-import deepdish as dd
-from functools import partial
-from itertools import repeat
-
-from os import listdir
-from os.path import isfile, join
-import pickle
-import h5py
-import gzip
-import time
-import os
-from collections import defaultdict
 
 import mygene
 
-# ---------- Load Preprocessed ---------#
-# ---- RUN 02-transfer_hb_graph.py which saves the filtered 'graph/brain_th{}.h5' -----#
-# load ref gene feature
-import h5py
-
-dataroot = os.path.join(os.path.dirname(__file__), "data")
-f = h5py.File(dataroot + "/raw/ref_gen.h5")
-embed = f["embed"]
-ref_fea0 = embed["embed_block_0"][()]
-ref_fea1 = embed["embed_block_1"][()]
-gene_name = np.char.decode(f["meta"]["gene_symbol"][()])
-f.close()
-ref_fea = np.concatenate([ref_fea0, ref_fea1], axis=1)
-
-# ------ Read column names from file
-# path = '/data/raw'
-# path = '../../data/frank/embedded/raw'
-path = os.path.join(dataroot, "raw")
-samples = [f for f in listdir(path) if isfile(join(path, f))]
+ref_fea = None
 
 
 def split(data, batch):
@@ -80,54 +49,40 @@ def split(data, batch):
     return data, slices
 
 
-def cat(seq):
-    seq = [item for item in seq if item is not None]
-    seq = [item.unsqueeze(-1) if item.dim() == 1 else item for item in seq]
-    return torch.cat(seq, dim=-1).squeeze() if len(seq) > 0 else None
-
-
-class NoDaemonProcess(multiprocessing.Process):
-    @property
-    def daemon(self):
-        return False
-
-    @daemon.setter
-    def daemon(self, value):
-        pass
-
-
-class NoDaemonContext(type(multiprocessing.get_context())):
-    Process = NoDaemonProcess
-
-
-# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
-# because the latter is only a wrapper function, not a proper class.
-
-
-def read_data(samples, edge_dict, label_mapping):
+def read_data(samples: list, edge_dict: dict, label_mapping: dict) -> Tuple[Data, dict]:
+    """Read a set of TCGA samples.
+    
+    :param samples: list of data file names
+    :param edge_dict: graph of gene interactions
+    :param label_mapping: mapping from `bytes`/`str` label encodings to numeric values
+    :return: tuple `(data, slices)`, the former as a `torch_geometric` `Data` object,
+        the later as XXX
+    """
     batch = []
     num_node_list = []
     y_list = []
     edge_att_list, edge_index_list, att_list = [], [], []
     res = []
 
+    # read the sample data from file
     start = time.time()
     for s in tqdm.tqdm(samples, desc="read samples"):
         try:
             a = read_single_data(s, edge_dict, label_mapping)
+            # skip invalid samples
             if a is None:
-                print("invalid sample: %s" % s)
+                print(f"invalid sample: {s}")
                 continue
             else:
                 res.append(a)
         except Exception as e:
-            print("error while processing %s" % s)
+            print(f"error while processing {s}")
             raise e
 
     stop = time.time()
-
     print(f"Loading dataset took {stop - start:.2f} seconds.")
 
+    # concatenate all the sample data into one big tensor
     for j in range(len(res)):
         edge_att_list.append(res[j][0])
         if j == 0:
@@ -162,7 +117,28 @@ def read_data(samples, edge_dict, label_mapping):
     return data, slices
 
 
-def read_single_data(sample, edge_dict, label_mapping, only_mutated=True):
+def read_single_data(
+    sample,
+    edge_dict,
+    label_mapping,
+    edge_tol: bool = 0.1,
+    only_mutated: bool = True,
+    tol: float = 1e-8,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int, int]:
+    """Read a single TCGA sample file.
+    
+    :param sample: name of HDF file
+    :param edge_dict: graph of gene interactions
+    :param label_mapping: mapping from `bytes`/`str` label encodings to numeric values
+    :param edge_tol: edges with weights smaller than this threshold are pruned
+    :return: tuple:
+        edge_att:   tensor of edge attributes, shape `(n_edge,)`
+        edge_index: tensor of vertex indices for each edge, shape `(2, n_edge)`
+        att:        array of node attributes
+        label:      numeric sample label
+        num_nodes:  number of nodes in the graph
+    """
+    # open and read the HDF file
     try:
         data = h5py.File(sample, "r")
     except OSError:
@@ -176,20 +152,26 @@ def read_single_data(sample, edge_dict, label_mapping, only_mutated=True):
     fea = np.concatenate([fea0, fea1], axis=1)
 
     if not only_mutated:
-        # find the gene without any mutation in fea
-        EPS = 1e-8
+        # XXX this is hacky and is currently not used
+        if ref_fea is None:
+            # load the reference feature encodings
+            dataroot = os.path.join(os.path.dirname(__file__), "data")
+            f = h5py.File(os.path.join(dataroot, "raw", "ref_gen.h5"))
+            embed = f["embed"]
+            ref_fea0 = embed["embed_block_0"][()]
+            ref_fea1 = embed["embed_block_1"][()]
+            gene_name = np.char.decode(f["meta"]["gene_symbol"][()])
+            f.close()
+            ref_fea = np.concatenate([ref_fea0, ref_fea1], axis=1)
 
+        # find mutated genes by comparing to reference
         diff = np.sum(np.abs(ref_fea - fea), axis=1)
-        mu_id = np.where(diff > EPS)[0]
+        mu_id = np.where(diff > tol)[0]
         if len(mu_id) == 0:
             return None
 
-        # get node features
+        # get node features and gene names
         att = fea[mu_id, :]  # alternatively, we can do fea[mu_id,:] - ref_fea[mu_id,:]
-
-        # construct graph structure
-
-        # ----first we  select the mutated gene name from TCGA's gene names ---#
         mu_gene_name = gene_name[mu_id]
     else:
         # get the list of mutated genes in Ensembl format
@@ -207,10 +189,11 @@ def read_single_data(sample, edge_dict, label_mapping, only_mutated=True):
         mu_gene_name = hgnc_names
 
         # some gene names are not found -- not entirely sure why; errors in the data?
+        # skip them
         mask = ["symbol" in _ for _ in mg_results]
         att = fea[mask, :]
 
-    # --- third match assign the HB links to TCGA mutated genes ---#
+    # construct graph structure, using `edge_dict` to generated edges
     cmat = np.zeros((len(mu_gene_name), len(mu_gene_name)))
     for i, gname1 in enumerate(mu_gene_name):
         for j, gname2 in enumerate(mu_gene_name):
@@ -219,73 +202,33 @@ def read_single_data(sample, edge_dict, label_mapping, only_mutated=True):
             except KeyError:
                 continue
 
-    # ---- fourth Remove small edges -----#
+    # remove edges with very small weights
     # edge_th = np.percentile(cmat.reshape(-1), 90)
-    edge_th = 0.1
-    cmat[cmat < edge_th] = 0
-    # import pdb
-    # pdb.set_trace()
+    cmat[cmat < edge_tol] = 0
     num_nodes = cmat.shape[0]
-    # ------- fifth build a graph --------#
-    cmat = cmat + np.identity(cmat.shape[0])
-    G = from_numpy_matrix(cmat)
-    A = nx.to_scipy_sparse_matrix(G)
-    adj = A.tocoo()
-    edge_att = np.zeros(len(adj.row))
-    for i in range(len(adj.row)):
-        edge_att[i] = cmat[adj.row[i], adj.col[i]]
+
+    # convert graph to encoding useful for torch_geometric -- lists of edges and attrs
+    adj = sparse.coo_matrix(cmat)
 
     edge_index = np.stack([adj.row, adj.col])
+    edge_att = adj.data
+
+    # ensure there are no self loops
     edge_index, edge_att = remove_self_loops(
         torch.from_numpy(edge_index), torch.from_numpy(edge_att)
     )
     edge_index = edge_index.long()
+
+    # sort indices and add weights for duplicated edges (we don't have any here, though)
     edge_index, edge_att = coalesce(edge_index, edge_att, num_nodes, num_nodes)
 
-    # get graph labels
+    # assign a numeric label
     label_bytes = data["label"]["sample_meta"]["tumor"][()]
     try:
         label = label_mapping[label_bytes]
     except KeyError:
         label = label_mapping[label_bytes.decode("utf-8")]
 
+    # close the HDF file and return
     data.close()
     return edge_att.data.numpy(), edge_index.data.numpy(), att, label, num_nodes
-
-
-if __name__ == "__main__":
-    start_time = time.time()
-    dataroot = os.path.dirname(__file__)
-    if os.path.exists(dataroot + "/graph/brain_org_network.pickle"):
-        with open(dataroot + "/graph/brain_org_network.pickle", "rb") as f:
-            edge_dict = pickle.load(f)
-        f.close()
-    else:
-        start_time = time.time()
-        file_brain = dataroot + "/graph/brain.geneSymbol.gz"
-        edge_dict = defaultdict(dict)
-        with gzip.open(file_brain, "rb") as f:
-            file_content = f.read()
-            for x in file_content.split(b"\n")[:-1]:
-                edge_dict[x.split(b"\t")[0].decode("ascii")][
-                    x.split(b"\t")[1].decode("ascii")
-                ] = float(x.split(b"\t")[2])
-                edge_dict[x.split(b"\t")[1].decode("ascii")][
-                    x.split(b"\t")[0].decode("ascii")
-                ] = float(x.split(b"\t")[2])
-            f.close()
-        with open("graph/brain_org_network.pickle", "wb") as f:
-            pickle.dump(edge_dict, f, pickle.HIGHEST_PROTOCOL)
-        f.close()
-    print(
-        "--- load human base brain network %s seconds ---" % (time.time() - start_time)
-    )
-    # read_data(samples)
-    start_time = time.time()
-    for s in samples:
-        try:
-            read_single_data(s, edge_dict)
-        except nx.exception.NetworkXError:
-            print(s)
-    print("--- read file %s seconds ---" % (time.time() - start_time))
-
