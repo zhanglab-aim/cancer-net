@@ -1,6 +1,5 @@
 import torch_geometric
 import torch_geometric.transforms as T
-from torch_geometric.data import DataLoader
 from torch_geometric.utils import normalized_cut
 from torch_geometric.nn import NNConv, graclus, max_pool, max_pool_x, global_mean_pool
 from torch_geometric.nn import (
@@ -15,7 +14,6 @@ from torch_geometric.nn import (
 )
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 from torch_geometric.nn import DataParallel
-from torch_geometric.data import DataListLoader
 from torch_geometric.nn import (
     GINConv,
     global_add_pool,
