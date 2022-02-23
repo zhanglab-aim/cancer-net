@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 
 from TCGAData import TCGADataset
 
-# from utils import GNNExplainer
 from arch.net import *
 
 
@@ -106,7 +105,6 @@ if __name__ == "__main__":
     parser.add_argument("--gpu", dest="gpu", default=True, action="store_true")
     parser.add_argument("--no-gpu", dest="gpu", action="store_false")
     parser.add_argument("--parall", dest="parall", action="store_true")
-    parser.add_argument("--explain", dest="explain", action="store_true")
     parser.add_argument("--batch", type=int, default=10, help="batch size")
     parser.add_argument(
         "--n-epochs", type=int, default=100, help="number of training epochs"
@@ -255,30 +253,5 @@ if __name__ == "__main__":
     plt.legend(prop={"size": 16})
     plt.xlabel("epoch", fontsize=16)
     plt.savefig("figures/training.png")
-
-    # TT: not sure what this was supposed to do; it probably won't work without change
-    # if opt.explain:
-    #     explainer = GNNExplainer(model, epochs=200, return_type="log_prob")
-    #     node_idx = 10
-    #     dataset_x = TCGADataset(root=dataroot)
-    #     train_loader = DataLoader(
-    #         dataset_x, batch_size=1, sampler=SubsetRandomSampler(train_indices)
-    #     )
-    #     for data in train_loader:
-    #         data = data.to(device)
-    #         node_feat_mask, edge_mask = explainer.explain_graph(data)
-    #         plt.figure()
-    #         plt.hist(edge_mask.detach().cpu().numpy(), bins=1000)
-    #         plt.xlabel("edge mask")
-    #         plt.ylabel("population")
-    #         plt.savefig("figures/hist.png")
-
-    #         th = np.percentile(edge_mask.detach().cpu().numpy(), 99.9)
-    #         plt.figure(figsize=(50, 50))
-    #         ax, G = explainer.visualize_subgraph(
-    #             node_idx, data.edge_index, edge_mask, threshold=th
-    #         )
-    #         plt.savefig("figures/explain.png")
-    #         break
 
     print("finished")
