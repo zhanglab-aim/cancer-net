@@ -185,7 +185,11 @@ if __name__ == "__main__":
     dataroot = os.path.join("data", opt.dataset)
     common_kwargs = {"root": dataroot, "label_mapping": all_label_mappings[opt.dataset]}
     if opt.arch == "GCN2":
-        # GCN2 requires data to be in a sparse format
+        # GCN2 requires some preprocessing:
+        #   * `GCNNorm` adds self-loops with weight 1 to every edge, and normalizes all
+        #     edge weights by the square roots of the node degrees.
+        #   * `ToSparseTensor` converts `edge_index` encoding into a transpose
+        #     representation with key `adj_t` (??)
         pre_transform = T.Compose([T.GCNNorm(), T.ToSparseTensor()])
         dataset = TCGADataset(
             **common_kwargs, pre_transform=pre_transform, suffix="sparse"
@@ -239,10 +243,10 @@ if __name__ == "__main__":
             theta=1.0,
             shared_weights=False,
             dropout=0.2,
-            flag=True,
+            output_intermediate=True,
         )
     elif opt.arch == "GCN":
-        model = GCNNet(flag=True)
+        model = GCNNet(output_intermediate=True)
     else:
         raise ValueError(f"Unknown architecture: {opt.arch}.")
 
