@@ -38,8 +38,8 @@ class TCGADataset(InMemoryDataset):
     The `gene_graph` is expected to be a gzip-compressed tab-separated file with rows of
     the form `(gene_symbol1, gene_symbol2, weight)`, encoding a graph. This is read and
     symmetrized (i.e., edges are added for both `(gene_symbol1, gene_symbol2)` and
-    `(gene_symbol2, gene_symbol1`)), and the result is stored in a pickle inside the
-    root folder for faster access in future runs.
+    `(gene_symbol2, gene_symbol1`)), and the result is stored in a pickle in the same
+    folder as the gzip file, for faster access in future runs.
     
     :param root: root folder for the samples; also used to store processed data
     :param label_mapping: dictionary from sample labels in `str` or `bytes` format to
@@ -55,7 +55,8 @@ class TCGADataset(InMemoryDataset):
         `basename` and the `suffix`, if there is one, preceded by "_"
     :param suffix: suffix used for generating the name of the processed-file folder, and
         also for setting the default `name`
-    :param gene_graph: filename for the gene graph in root folder
+    :param gene_graph: filename for the gene graph in the `graph_dir` folder
+    :param graph_dir: subfolder of root where to look for the gene graph
     :param samples_file: file in the root folder where the sample names are read from
     """
 
@@ -69,10 +70,12 @@ class TCGADataset(InMemoryDataset):
         name: Optional[str] = None,
         suffix: str = "",
         gene_graph: str = "gene_graph.gz",
+        graph_dir: str = "graph",
         samples_file: str = "samples.txt",
     ):
         self.suffix = suffix
         self.gene_graph = gene_graph
+        self.graph_dir = graph_dir
 
         # handle defaults
         if name is not None:
@@ -127,7 +130,7 @@ class TCGADataset(InMemoryDataset):
         start_time = time.time()
 
         # load gene graph (e.g., from HumanBase)
-        graph_file = osp.join(self.root, self.gene_graph)
+        graph_file = osp.join(self.root, self.graph_dir, self.gene_graph)
         graph_noext, _ = osp.splitext(graph_file)
         graph_pickle = graph_noext + ".pkl"
 
