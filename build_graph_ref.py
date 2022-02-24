@@ -177,8 +177,6 @@ def read_single_data(
         data = h5py.File(sample, "r")
     except OSError:
         warning(f"Cannot load sample file: {sample}.")
-
-    if "data" not in data:
         return None
 
     fea0 = data["data"]["promoter"][()]  # 64-column, noncoding features
