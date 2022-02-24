@@ -80,7 +80,7 @@ dims = [128, 128, 64, 64, 128, 128, 256]
 
 
 class GCNNet(torch.nn.Module):
-    def __init__(self, flag):
+    def __init__(self, flag, num_classes=2):
         dim = 128
         super(GCNNet, self).__init__()
         self.prop1 = GCNConv(in_channels=dim, out_channels=dims[1])
@@ -90,7 +90,7 @@ class GCNNet(torch.nn.Module):
         self.fc1 = Linear(dims[2], dims[5])
         # self.fc2 = Linear(dims[5], dims[6])
         # self.fc3 = Linear(dims[6], dims[2])
-        self.fc2 = Linear(dims[5], 2)
+        self.fc2 = Linear(dims[5], num_classes)
         self.m = nn.LogSoftmax(dim=1)
         self.flag = flag
 
@@ -130,13 +130,14 @@ class GCN2Net(torch.nn.Module):
         shared_weights=True,
         dropout=0.0,
         flag=False,
+        num_classes=2,
     ):
         super(GCN2Net, self).__init__()
 
         self.lins = torch.nn.ModuleList()
         self.lins.append(Linear(128, hidden_channels))
         self.lins.append(Linear(hidden_channels * 2, hidden_channels // 2))
-        self.lins.append(Linear(hidden_channels // 2, 2))
+        self.lins.append(Linear(hidden_channels // 2, num_classes))
 
         self.convs = torch.nn.ModuleList()
         for layer in range(num_layers):
