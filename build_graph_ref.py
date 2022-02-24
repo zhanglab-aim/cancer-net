@@ -179,6 +179,10 @@ def read_single_data(
         warning(f"Cannot load sample file: {sample}.")
         return None
 
+    if "data" not in data:
+        warning(f"Cannot load sample file: {sample}. (no data key)")
+        return None
+
     fea0 = data["data"]["promoter"][()]  # 64-column, noncoding features
     fea1 = data["data"]["protein"][()]  # 64-column, coding features
     fea = np.concatenate([fea0, fea1], axis=1)
