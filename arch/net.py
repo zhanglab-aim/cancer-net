@@ -1,44 +1,32 @@
-import torch_geometric
-import torch_geometric.transforms as T
-from torch_geometric.utils import normalized_cut
-from torch_geometric.nn import NNConv, graclus, max_pool, max_pool_x, global_mean_pool
-from torch_geometric.nn import (
-    GraphConv,
-    TopKPooling,
-    dense_diff_pool,
-    SAGPooling,
-    GATConv,
-    GCNConv,
-    GCNConv,
-    GCN2Conv,
-)
-from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
-from torch_geometric.nn import DataParallel
-from torch_geometric.nn import (
-    GINConv,
-    global_add_pool,
-    global_max_pool,
-    global_sort_pool,
-    dense_diff_pool,
-)
-from torch_geometric.nn import PairNorm
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Sequential, Linear, ReLU
+from torch_geometric.nn import (
+    NNConv,
+    TopKPooling,
+    GCNConv,
+    GCNConv,
+    GCN2Conv,
+    PairNorm,
+)
+from torch_geometric.nn import global_mean_pool, global_max_pool
 
 
 class Net(torch.nn.Module):
+    """A convolutional neural net working on the graph data. """
+
     def __init__(self):
         super(Net, self).__init__()
         dim = 128
-        n1 = nn.Sequential(nn.Linear(1, 4), nn.ReLU(), nn.Linear(4, 64 * dim))
+
         self.conv1 = NNConv(dim, 64, n1, aggr="mean")
         self.pool1 = TopKPooling(64, ratio=0.5)
-        n2 = nn.Sequential(nn.Linear(1, 4), nn.ReLU(), nn.Linear(4, 64 * 64))
+
         self.conv2 = NNConv(64, 64, n2, aggr="mean")
         self.pool2 = TopKPooling(64, ratio=0.5)
+
+        n1 = nn.Sequential(nn.Linear(1, 4), nn.ReLU(), nn.Linear(4, 64 * dim))
+        n2 = nn.Sequential(nn.Linear(1, 4), nn.ReLU(), nn.Linear(4, 64 * 64))
 
         self.fc1 = torch.nn.Linear(128 + 128, 64)
         self.fc2 = torch.nn.Linear(64, 8)
@@ -56,13 +44,13 @@ class Net(torch.nn.Module):
         x, edge_index, edge_attr, batch, _, _ = self.pool1(
             x, edge_index, edge_attr, batch
         )
-        x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x1 = torch.cat([global_max_pool(x, batch), global_mean_pool(x, batch)], dim=1)
 
         x = F.relu(self.conv2(x, edge_index, edge_attr))
         x, edge_index, edge_attr, batch, _, _ = self.pool2(
             x, edge_index, edge_attr, batch
         )
-        x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x2 = torch.cat([global_max_pool(x, batch), global_mean_pool(x, batch)], dim=1)
 
         # x = x1 + x2 + x3
         x = torch.cat([x1, x2], dim=1)
@@ -87,10 +75,10 @@ class GCNNet(torch.nn.Module):
         self.prop2 = GCNConv(in_channels=dims[1], out_channels=dims[2])
         # self.prop3 = GCNConv(in_channels = dims[2], out_channels = dims[3])
         # self.prop4 = GCNConv(in_channels = dims[3], out_channels = dims[4])
-        self.fc1 = Linear(dims[2], dims[5])
-        # self.fc2 = Linear(dims[5], dims[6])
-        # self.fc3 = Linear(dims[6], dims[2])
-        self.fc2 = Linear(dims[5], 2)
+        self.fc1 = torch.nn.Linear(dims[2], dims[5])
+        # self.fc2 = torch.nn.Linear(dims[5], dims[6])
+        # self.fc3 = torch.nn.Linear(dims[6], dims[2])
+        self.fc2 = torch.nn.Linear(dims[5], 2)
         self.m = nn.LogSoftmax(dim=1)
         self.flag = flag
 
@@ -104,7 +92,7 @@ class GCNNet(torch.nn.Module):
         # x = F.dropout(x, p=0.5, training=self.training)
         # x = F.relu(self.prop4(x, data.edge_index, data.edge_attr))
         # x2 = global_sort_pool(x1, data.batch, 1)
-        x2 = gap(x1, data.batch)
+        x2 = global_mean_pool(x1, data.batch)
         x = F.dropout(x2, p=0.5, training=self.training)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, p=0.5, training=self.training)
@@ -134,9 +122,9 @@ class GCN2Net(torch.nn.Module):
         super(GCN2Net, self).__init__()
 
         self.lins = torch.nn.ModuleList()
-        self.lins.append(Linear(128, hidden_channels))
-        self.lins.append(Linear(hidden_channels * 2, hidden_channels // 2))
-        self.lins.append(Linear(hidden_channels // 2, 2))
+        self.lins.append(torch.nn.Linear(128, hidden_channels))
+        self.lins.append(torch.nn.Linear(hidden_channels * 2, hidden_channels // 2))
+        self.lins.append(torch.nn.Linear(hidden_channels // 2, 2))
 
         self.convs = torch.nn.ModuleList()
         for layer in range(num_layers):
@@ -172,7 +160,7 @@ class GCN2Net(torch.nn.Module):
         # x = F.dropout(x, self.dropout, training=self.training)
         # x = global_sort_pool(x, batch, 1)
         x1 = x
-        x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x2 = torch.cat([global_max_pool(x, batch), global_mean_pool(x, batch)], dim=1)
         x = self.lins[1](x2)
         x = self.bn(x.relu())
         x = self.lins[2](x)
