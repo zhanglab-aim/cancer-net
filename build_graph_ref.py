@@ -22,17 +22,40 @@ import mygene
 ref_fea = None
 
 
-def split(data, batch):
+def split(data: Data, batch: torch.Tensor) -> Tuple[Data, dict]:
+    """Split data into slices.
+
+    This changes `data` in-place! XXX why?
+    
+    :param data: data in `torch_geometric` `Data` format
+    :param batch: sequence of sample indices for each entry in data
+    :return: tuple `(data, slices)`, the former returns the input `data` structure after
+        ensuring that `edge_index` starts at 0 for each sample; and the latter is a
+        `dict` containing the following if the corresponding fields exist in `data`,
+        with the exception of `pos`, which is always there
+            edge_index: starting positions for each sample in edge list
+            edge_attr:  starting positions for each sample in edge list
+            x:          starting positions for each sample in node list
+            y:          starting positions for each sample in edge list, if `y` has the
+                        same size as `batch`, otherwise the numbers 0, ...,
+                        `batch[-1] + 1`; XXX why?
+            pos:        starting positions for each sample in node list
+    """
+    # make tensor of starting positions for each sample in node list
+    # `np.bincount` automatically sorts these in increasing order of sample indices
     node_slice = torch.cumsum(torch.from_numpy(np.bincount(batch)), 0)
     node_slice = torch.cat([torch.tensor([0]), node_slice])
 
+    # make tensor of starting positions for each sample in edge list
+    # (this uses only row information because we know edges are only within each sample)
     row, _ = data.edge_index
     edge_slice = torch.cumsum(torch.from_numpy(np.bincount(batch[row])), 0)
     edge_slice = torch.cat([torch.tensor([0]), edge_slice])
 
-    # Edge indices should start at zero for every graph.
+    # recover indices starting at zero for each sample
     data.edge_index -= node_slice[batch[row]].unsqueeze(0)
 
+    # create the slices dict
     slices = {"edge_index": edge_slice}
     if data.x is not None:
         slices["x"] = node_slice
@@ -56,12 +79,8 @@ def read_data(samples: list, edge_dict: dict, label_mapping: dict) -> Tuple[Data
     :param edge_dict: graph of gene interactions
     :param label_mapping: mapping from `bytes`/`str` label encodings to numeric values
     :return: tuple `(data, slices)`, the former as a `torch_geometric` `Data` object,
-        the later as XXX
+        the later as a `dict`
     """
-    batch = []
-    num_node_list = []
-    y_list = []
-    edge_att_list, edge_index_list, att_list = [], [], []
     res = []
 
     # read the sample data from file
@@ -83,35 +102,50 @@ def read_data(samples: list, edge_dict: dict, label_mapping: dict) -> Tuple[Data
     print(f"Loading dataset took {stop - start:.2f} seconds.")
 
     # concatenate all the sample data into one big tensor
+    batch = []  # keeps track of the sample index
+    num_node_list = []  # keeps track of the number of nodes per sample
+    y_list = []  # keeps track of labels
+
+    # these keep track of the graph: edge attributes, edge vertices, node attributes
+    edge_att_list, edge_index_list, att_list = [], [], []
+
+    # this first makes lists of lists (or arrays)
     for j in range(len(res)):
+        # update vertex indices to refer to concatenated lists
+        edge_index_list.append(res[j][1] + sum(num_node_list))
+
+        # the rest can just be copied over
         edge_att_list.append(res[j][0])
-        if j == 0:
-            edge_index_list.append(res[j][1])
-        else:
-            edge_index_list.append(res[j][1] + sum(num_node_list))
-        num_node_list.append(res[j][4])
         att_list.append(res[j][2])
         y_list.append(res[j][3])
+        num_node_list.append(res[j][4])
+
         batch.append([j] * res[j][4])
 
-    edge_att_arr = np.concatenate(edge_att_list)
+    # make the concatenated arrays
     edge_index_arr = np.concatenate(edge_index_list, axis=1)
+    edge_att_arr = np.concatenate(edge_att_list)
     att_arr = np.concatenate(att_list, axis=0)
     y_arr = np.stack(y_list)
+
+    # convert to PyTorch
+    edge_index_torch = torch.from_numpy(edge_index_arr).long()
     edge_att_torch = torch.from_numpy(
         edge_att_arr.reshape(len(edge_att_arr), 1)
     ).float()
     att_torch = torch.from_numpy(att_arr).float()
     y_torch = torch.from_numpy(y_arr).long()  # classification
     batch_torch = torch.from_numpy(np.hstack(batch)).long()
-    edge_index_torch = torch.from_numpy(edge_index_arr).long()
+
+    # make a torch_geometric Data object
     data = Data(
-        x=att_torch,
         edge_index=edge_index_torch,
-        y=y_torch,
         edge_attr=edge_att_torch.squeeze(),
+        x=att_torch,
+        y=y_torch,
     )
 
+    # generate slices
     data, slices = split(data, batch_torch)
 
     return data, slices
