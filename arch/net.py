@@ -131,9 +131,9 @@ class GCNNet(torch.nn.Module):
 
     def __init__(
         self,
-        output_intermediate: bool,
         num_classes: int = 2,
         dims: Sequence = (128, 128, 64, 128),
+        output_intermediate: bool = False,
     ):
         assert len(dims) == 4
 
