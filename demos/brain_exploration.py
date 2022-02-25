@@ -375,8 +375,8 @@ for tb in loader_auc:
     outs.append(torch.exp(model(tb)).cpu().data.numpy())
     ys.append(tb.y.cpu().numpy())
 
-outs = torch.cat(outs).cpu().data.numpy()
-ys = torch.cat(ys).cpu().data.numpy()
+outs = np.concatenate(outs)
+ys = np.concatenate(ys)
 
 fpr_train, tpr_train, _ = roc_curve(ys, outs[:, 1])
 train_auc = auc(fpr_train, tpr_train)
@@ -395,8 +395,8 @@ for tb in loader_auc:
     outs.append(torch.exp(model(tb)).cpu().data.numpy())
     ys.append(tb.y.cpu().numpy())
 
-outs = torch.cat(outs).cpu().data.numpy()
-ys = torch.cat(ys).cpu().data.numpy()
+outs = np.concatenate(outs)
+ys = np.concatenate(ys)
 
 fpr_test, tpr_test, _ = roc_curve(ys, outs[:, 1])
 test_auc = auc(fpr_test, tpr_test)
@@ -607,8 +607,8 @@ for tb in loader_auc:
     outs.append(torch.exp(model(tb)).cpu().data.numpy())
     ys.append(tb.y.cpu().numpy())
 
-outs = torch.cat(outs).cpu().data.numpy()
-ys = torch.cat(ys).cpu().data.numpy()
+outs = np.concatenate(outs)
+ys = np.concatenate(ys)
 
 fpr_train, tpr_train, _ = roc_curve(ys, outs[:, 1])
 train_auc = auc(fpr_train, tpr_train)
@@ -627,8 +627,8 @@ for tb in loader_auc:
     outs.append(torch.exp(model(tb)).cpu().data.numpy())
     ys.append(tb.y.cpu().numpy())
 
-outs = torch.cat(outs).cpu().data.numpy()
-ys = torch.cat(ys).cpu().data.numpy()
+outs = np.concatenate(outs)
+ys = np.concatenate(ys)
 
 fpr_test, tpr_test, _ = roc_curve(ys, outs[:, 1])
 test_auc = auc(fpr_test, tpr_test)
