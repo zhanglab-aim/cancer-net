@@ -179,24 +179,20 @@ class TCGADataset(InMemoryDataset):
 
         # load the data
         full_file_names = [osp.join(self.raw_dir, _) for _ in self.raw_file_names]
-        self.data, self.slices = read_data(
-            full_file_names, edge_dict, self.label_mapping
-        )
+        data_list = read_data(full_file_names, edge_dict, self.label_mapping)
 
         # pre-filter and/or pre-transform, if necessary
         if self.pre_filter is not None:
             t0 = time.time()
-            data_list = [self.get(idx) for idx in range(len(self))]
             data_list = [data for data in data_list if self.pre_filter(data)]
-            self.data, self.slices = self.collate(data_list)
             print(f"Pre-filtering took {time.time() - t0:.2f} seconds.")
 
         if self.pre_transform is not None:
             t0 = time.time()
-            data_list = [self.get(idx) for idx in range(len(self))]
             data_list = [self.pre_transform(data) for data in data_list]
-            self.data, self.slices = self.collate(data_list)
             print(f"Pre-transforming took {time.time() - t0:.2f} seconds.")
+
+        self.data, self.slices = self.collate(data_list)
 
         # save the processed dataset for later use
         t0 = time.time()

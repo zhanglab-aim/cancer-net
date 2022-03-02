@@ -81,7 +81,7 @@ def read_data(samples: list, edge_dict: dict, label_mapping: dict) -> Tuple[Data
     :return: tuple `(data, slices)`, the former as a `torch_geometric` `Data` object,
         the later as a `dict`
     """
-    res = []
+    data_list = []
 
     # read the sample data from file
     start = time.time()
@@ -93,7 +93,7 @@ def read_data(samples: list, edge_dict: dict, label_mapping: dict) -> Tuple[Data
                 print(f"invalid sample: {s}")
                 continue
             else:
-                res.append(a)
+                data_list.append(a)
         except Exception as e:
             print(f"error while processing {s}")
             raise e
@@ -101,54 +101,7 @@ def read_data(samples: list, edge_dict: dict, label_mapping: dict) -> Tuple[Data
     stop = time.time()
     print(f"Loading dataset took {stop - start:.2f} seconds.")
 
-    # concatenate all the sample data into one big tensor
-    batch = []  # keeps track of the sample index
-    num_node_list = []  # keeps track of the number of nodes per sample
-    y_list = []  # keeps track of labels
-
-    # these keep track of the graph: edge attributes, edge vertices, node attributes
-    edge_att_list, edge_index_list, att_list = [], [], []
-
-    # this first makes lists of lists (or arrays)
-    for j in range(len(res)):
-        # update vertex indices to refer to concatenated lists
-        edge_index_list.append(res[j][1] + sum(num_node_list))
-
-        # the rest can just be copied over
-        edge_att_list.append(res[j][0])
-        att_list.append(res[j][2])
-        y_list.append(res[j][3])
-        num_node_list.append(res[j][4])
-
-        batch.append([j] * res[j][4])
-
-    # make the concatenated arrays
-    edge_index_arr = np.concatenate(edge_index_list, axis=1)
-    edge_att_arr = np.concatenate(edge_att_list)
-    att_arr = np.concatenate(att_list, axis=0)
-    y_arr = np.stack(y_list)
-
-    # convert to PyTorch
-    edge_index_torch = torch.from_numpy(edge_index_arr).long()
-    edge_att_torch = torch.from_numpy(
-        edge_att_arr.reshape(len(edge_att_arr), 1)
-    ).float()
-    att_torch = torch.from_numpy(att_arr).float()
-    y_torch = torch.from_numpy(y_arr).long()  # classification
-    batch_torch = torch.from_numpy(np.hstack(batch)).long()
-
-    # make a torch_geometric Data object
-    data = Data(
-        edge_index=edge_index_torch,
-        edge_attr=edge_att_torch.squeeze(),
-        x=att_torch,
-        y=y_torch,
-    )
-
-    # generate slices
-    data, slices = split(data, batch_torch)
-
-    return data, slices
+    return data_list
 
 
 def read_single_data(
@@ -158,19 +111,19 @@ def read_single_data(
     edge_tol: bool = 0.1,
     only_mutated: bool = True,
     tol: float = 1e-8,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int, int]:
+) -> Data:
     """Read a single TCGA sample file.
     
     :param sample: name of HDF file
     :param edge_dict: graph of gene interactions
     :param label_mapping: mapping from `bytes`/`str` label encodings to numeric values
     :param edge_tol: edges with weights smaller than this threshold are pruned
-    :return: tuple:
-        edge_att:   tensor of edge attributes, shape `(n_edge,)`
-        edge_index: tensor of vertex indices for each edge, shape `(2, n_edge)`
-        att:        array of node attributes
-        label:      numeric sample label
-        num_nodes:  number of nodes in the graph
+    :return: torch geometric data object containing:
+        edge_index
+        edge_attr
+        x: graph nodes
+        y: class of the cancer type
+        node_id: id of the mutated gene
     """
     # open and read the HDF file
     try:
@@ -265,6 +218,15 @@ def read_single_data(
     except KeyError:
         label = label_mapping[label_bytes.decode("utf-8")]
 
+    node_id = [el.decode("utf-8") for el in data["meta"]["mutated_gene_list"][()]]
+
     # close the HDF file and return
     data.close()
-    return edge_att.data.numpy(), edge_index.data.numpy(), att, label, num_nodes
+    return Data(
+        edge_index=edge_index,
+        edge_attr=edge_att.type(torch.float),
+        x=torch.Tensor(att),
+        y=label,
+        node_id=node_id,
+    )
+
