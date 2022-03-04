@@ -12,6 +12,35 @@ sys.path.append('../')
 import TCGAData
 from arch.net import *
 
+class EarlyStopping():
+    """
+    Early stopping to stop the training when the loss does not improve after
+    certain epochs.
+    """
+    def __init__(self, patience=10, min_delta=0):
+        """
+        :param patience: how many epochs to wait before stopping when loss is
+               not improving
+        :param min_delta: minimum difference between new loss and old loss for
+               new loss to be considered as an improvement
+        """
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+    def __call__(self, val_loss):
+        if self.best_loss == None:
+            self.best_loss = val_loss
+        elif self.best_loss - val_loss > self.min_delta:
+            self.best_loss = val_loss
+            # reset counter if validation loss improves
+            self.counter = 0
+        elif self.best_loss - val_loss < self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+
 class Objective(object):
     def __init__(self,arch,root,rng,batch,epochs,device):
         self.arch=arch
@@ -60,15 +89,6 @@ class Objective(object):
     
     def train(self, epoch, report=True):
         self.model.train()
-
-        if epoch == 30:
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = self.lr * 0.5
-
-        if epoch == 60:
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"] = self.lr * 0.1
-
         total_loss = 0
         correct = 0
         num_samps = 0
@@ -131,12 +151,12 @@ class Objective(object):
     def __call__(self,trial):
         print("Suggesting trial")
         # get the value of the hyperparameters
-        self.lr        = trial.suggest_float("lr", 1e-5, 5e-2, log=True)
+        lr        = trial.suggest_float("lr", 1e-5, 5e-2, log=True)
         self.alpha     = trial.suggest_float("alpha", 0.2, 0.8)
         self.dropout   = trial.suggest_float("dropout", 0.1, 0.4)
         print("Suggested trial")
         ## Store hyperparams in a config for wandb
-        config = {"learning rate": self.lr,
+        config = {"learning rate": lr,
                  "epochs": self.epochs,
                  "batch size": self.batch,
                  "arch": self.arch,
@@ -144,7 +164,7 @@ class Objective(object):
                  "dropout": self.dropout}
 
         print("\nTrial number: {}".format(trial.number))
-        print("lr: {}".format(self.lr))
+        print("lr: {}".format(lr))
         print("alpha: {}".format(self.alpha))
         print("dropout: {}".format(self.dropout))
 
@@ -158,7 +178,9 @@ class Objective(object):
             shared_weights=False,
             dropout=self.dropout).to(device)
         wandb.watch(self.model, log_freq=1)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.3, patience=10)
+        early_stopping=EarlyStopping()
         self.criterion = F.nll_loss
         train_losses = []
         train_acces = []
@@ -175,9 +197,16 @@ class Objective(object):
             wandb.log({"train loss": train_loss,
                        "test loss": test_loss,
                        "train accuracy": train_acc,
-                       "test accuracy": test_acc})
+                       "test accuracy": test_acc,
+                       "learning rate": self.optimizer.param_groups[0]["lr"]})
             if report:
                 print("Test Loss: {:.3g}, Acc: {:.4f}".format(test_loss, test_acc))
+            if epoch>50:
+                early_stopping(test_loss)
+                if early_stopping.early_stop:
+                    wandb.finish()
+                    trial.study.stop()
+                    break
         wandb.finish()
 
 arch = "GCN2"
