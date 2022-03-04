@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import time
 import tqdm
+import numpy as np
 
 from typing import Union, Optional, Callable
 
@@ -72,7 +73,15 @@ class TCGADataset(InMemoryDataset):
         gene_graph: str = "gene_graph.gz",
         graph_dir: str = "graph",
         samples_file: str = "samples.txt",
+        valid_ratio: float = 0.15,
+        test_ratio: float = 0.25,
+        valid_seed: int = 0,
+        test_seed: int = 7357,
     ):
+
+        assert (
+            valid_ratio + test_ratio < 1
+        ), "test_ratio + valid_ratio must be less than one!"
         self.suffix = suffix
         self.gene_graph = gene_graph
         self.graph_dir = graph_dir
@@ -107,6 +116,30 @@ class TCGADataset(InMemoryDataset):
 
         # load the processed dataset
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self.num_samples = len(self.data.y)
+        self.num_test_samples = int(test_ratio * self.num_samples)
+        self.num_valid_samples = int(valid_ratio * self.num_samples)
+        self.num_train_samples = (
+            self.num_samples - self.num_test_samples - self.num_valid_samples
+        )
+
+        # train/valid/test random generators
+        rng_test = np.random.default_rng(test_seed)
+        rng_valid = np.random.default_rng(valid_seed)
+
+        # splitting off the test indices
+        test_split_perm = rng_test.permutation(self.num_samples)
+        self.test_idx = list(test_split_perm[: self.num_test_samples])
+        self.trainvalid_indices = test_split_perm[self.num_test_samples :]
+
+        # splitting off the validation from the remainder
+        valid_split_perm = rng_valid.permutation(len(self.trainvalid_indices))
+        self.valid_idx = list(
+            self.trainvalid_indices[valid_split_perm[: self.num_valid_samples]]
+        )
+        self.train_idx = list(
+            self.trainvalid_indices[valid_split_perm[self.num_valid_samples :]]
+        )
 
     @property
     def raw_file_names(self):
@@ -204,3 +237,23 @@ class TCGADataset(InMemoryDataset):
 
     def __repr__(self):
         return f'TCGADataset(name={self.name}, len={len(self)}, suffix="{self.suffix}")'
+
+    def set_valid_seed(
+        self, valid_seed, valid_ratio: float = 0.15,
+    ):
+
+        rng_valid = np.random.default_rng(valid_seed)
+        self.num_valid_samples = int(valid_ratio * self.num_samples)
+        self.num_train_samples = (
+            self.num_samples - self.num_test_samples - self.num_valid_samples
+        )
+
+        # splitting off the validation from the remainder
+        valid_split_perm = rng_valid.permutation(len(self.trainvalid_indices))
+        self.valid_idx = list(
+            self.trainvalid_indices[valid_split_perm[: self.num_valid_samples]]
+        )
+        self.train_idx = list(
+            self.trainvalid_indices[valid_split_perm[self.num_valid_samples :]]
+        )
+
