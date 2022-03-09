@@ -185,26 +185,20 @@ dataset = TCGAData.TCGADataset(
     gene_graph="global.geneSymbol.gz",
 )
 
-rng = np.random.default_rng(2022)
-rnd_perm = rng.permutation(len(dataset))
-train_indices = list(rnd_perm[: 3 * len(dataset) // 4])
-test_indices = list(rnd_perm[3 * len(dataset) // 4 :])
+
 train_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=True,
 )
-test_loader = DataLoader(
+valid_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=True,
 )
 
-assert len(train_indices) + len(test_indices) == len(
-    dataset
-), "Train test split with overlap or unused samples!"
 
 model = GCNNet(num_classes=3).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -254,13 +248,13 @@ def train(epoch, report=True):
     return total_loss / num_samps, correct / num_samps
 
 
-def test():
+def valid():
     model.eval()
     correct = 0
 
     total_loss = 0
     num_samps = 0
-    for data in test_loader:
+    for data in valid_loader:
         if not parall:
             data = data.to(device)
         output = model(data)
@@ -281,28 +275,28 @@ def test():
 
 train_losses = []
 train_acces = []
-test_acces = []
-test_losses = []
+valid_acces = []
+valid_losses = []
 for epoch in range(1, 101):
     report = (epoch) % 10 == 0
     train_loss, train_acc = train(epoch, report=report)
-    test_loss, test_acc = test()
+    valid_loss, valid_acc = valid()
     train_losses.append(train_loss.cpu().detach().numpy())
-    test_losses.append(test_loss)
+    valid_losses.append(valid_loss)
     train_acces.append(train_acc)
-    test_acces.append(test_acc)
+    valid_acces.append(valid_acc)
     if report:
-        print("Test Loss: {:.3g}, Acc: {:.4f}".format(test_loss, test_acc))
+        print("valid Loss: {:.3g}, Acc: {:.4f}".format(valid_loss, valid_acc))
 
 plt.figure()
 plt.plot(train_acces, label="train acc", linewidth=3)
-plt.plot(test_acces, label="test acc", linewidth=3)
+plt.plot(valid_acces, label="valid acc", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
 plt.show()
 plt.plot(train_losses, c="tab:blue", label="train loss", linewidth=3)
-plt.plot(test_losses, c="tab:orange", label="test loss", linewidth=3)
+plt.plot(valid_losses, c="tab:orange", label="valid loss", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
@@ -311,7 +305,7 @@ plt.show()
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=False,
 )
 
@@ -331,7 +325,7 @@ train_auc_ovr = roc_auc_score(ys, outs, multi_class="ovr")
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=False,
 )
 
@@ -345,14 +339,16 @@ for tb in loader_auc:
 outs = np.concatenate(outs)
 ys = np.concatenate(ys)
 
-test_auc_ovo = roc_auc_score(ys, outs, multi_class="ovo")
-test_auc_ovr = roc_auc_score(ys, outs, multi_class="ovr")
+valid_auc_ovo = roc_auc_score(ys, outs, multi_class="ovo")
+valid_auc_ovr = roc_auc_score(ys, outs, multi_class="ovr")
 
 print(
-    "AUCs one-vs-rest: Train: {:.3f}, Test: {:.3f}".format(train_auc_ovr, test_auc_ovr)
+    "AUCs one-vs-rest: Train: {:.3f}, valid: {:.3f}".format(
+        train_auc_ovr, valid_auc_ovr
+    )
 )
 print(
-    "AUCs one-vs-one: Train: {:.3f}, Test: {:.3f}".format(train_auc_ovo, test_auc_ovo)
+    "AUCs one-vs-one: Train: {:.3f}, valid: {:.3f}".format(train_auc_ovo, valid_auc_ovo)
 )
 
 confusion = confusion_matrix(y_true=ys, y_pred=outs.argmax(1), normalize="true")
@@ -403,30 +399,23 @@ dataset = TCGAData.TCGADataset(
     files=files,
     label_mapping=label_mapping,
     gene_graph="global.geneSymbol.gz",
-    transform=pre_transform,
+    pre_transform=pre_transform,
     suffix="sparse",
 )
 
-rng = np.random.default_rng(2022)
-rnd_perm = rng.permutation(len(dataset))
-train_indices = list(rnd_perm[: 3 * len(dataset) // 4])
-test_indices = list(rnd_perm[3 * len(dataset) // 4 :])
+
 train_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=True,
 )
-test_loader = DataLoader(
+valid_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=True,
 )
-
-assert len(train_indices) + len(test_indices) == len(
-    dataset
-), "Train test split with overlap or unused samples!"
 
 model = GCN2Net(
     hidden_channels=2048,
@@ -484,13 +473,13 @@ def train(epoch, report=True):
     return total_loss / num_samps, correct / num_samps
 
 
-def test():
+def valid():
     model.eval()
     correct = 0
 
     total_loss = 0
     num_samps = 0
-    for data in test_loader:
+    for data in valid_loader:
         if not parall:
             data = data.to(device)
         output = model(data)
@@ -511,28 +500,28 @@ def test():
 
 train_losses = []
 train_acces = []
-test_acces = []
-test_losses = []
+valid_acces = []
+valid_losses = []
 for epoch in range(1, 201):
     report = (epoch) % 20 == 0
     train_loss, train_acc = train(epoch, report=report)
-    test_loss, test_acc = test()
+    valid_loss, valid_acc = valid()
     train_losses.append(train_loss.cpu().detach().numpy())
-    test_losses.append(test_loss)
+    valid_losses.append(valid_loss)
     train_acces.append(train_acc)
-    test_acces.append(test_acc)
+    valid_acces.append(valid_acc)
     if report:
-        print("Test Loss: {:.3g}, Acc: {:.4f}".format(test_loss, test_acc))
+        print("valid Loss: {:.3g}, Acc: {:.4f}".format(valid_loss, valid_acc))
 
 plt.figure()
 plt.plot(train_acces, label="train acc", linewidth=3)
-plt.plot(test_acces, label="test acc", linewidth=3)
+plt.plot(valid_acces, label="valid acc", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
 plt.show()
 plt.plot(train_losses, c="tab:blue", label="train loss", linewidth=3)
-plt.plot(test_losses, c="tab:orange", label="test loss", linewidth=3)
+plt.plot(valid_losses, c="tab:orange", label="valid loss", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
@@ -541,7 +530,7 @@ plt.show()
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=False,
 )
 
@@ -561,7 +550,7 @@ train_auc_ovr = roc_auc_score(ys, outs, multi_class="ovr")
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=False,
 )
 
@@ -575,14 +564,16 @@ for tb in loader_auc:
 outs = np.concatenate(outs)
 ys = np.concatenate(ys)
 
-test_auc_ovo = roc_auc_score(ys, outs, multi_class="ovo")
-test_auc_ovr = roc_auc_score(ys, outs, multi_class="ovr")
+valid_auc_ovo = roc_auc_score(ys, outs, multi_class="ovo")
+valid_auc_ovr = roc_auc_score(ys, outs, multi_class="ovr")
 
 print(
-    "AUCs one-vs-rest: Train: {:.3f}, Test: {:.3f}".format(train_auc_ovr, test_auc_ovr)
+    "AUCs one-vs-rest: Train: {:.3f}, valid: {:.3f}".format(
+        train_auc_ovr, valid_auc_ovr
+    )
 )
 print(
-    "AUCs one-vs-one: Train: {:.3f}, Test: {:.3f}".format(train_auc_ovo, test_auc_ovo)
+    "AUCs one-vs-one: Train: {:.3f}, valid: {:.3f}".format(train_auc_ovo, valid_auc_ovo)
 )
 
 confusion = confusion_matrix(y_true=ys, y_pred=outs.argmax(1), normalize="true")
@@ -632,26 +623,19 @@ dataset = TCGAData.TCGADataset(
 )
 
 
-rng = np.random.default_rng(2022)
-rnd_perm = rng.permutation(len(dataset))
-train_indices = list(rnd_perm[: 3 * len(dataset) // 4])
-test_indices = list(rnd_perm[3 * len(dataset) // 4 :])
 train_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=True,
 )
-test_loader = DataLoader(
+valid_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=True,
 )
 
-assert len(train_indices) + len(test_indices) == len(
-    dataset
-), "Train test split with overlap or unused samples!"
 
 model = GCNNet().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -705,13 +689,13 @@ def train(epoch, report=True):
     return total_loss / num_samps, correct / num_samps
 
 
-def test():
+def valid():
     model.eval()
     correct = 0
 
     total_loss = 0
     num_samps = 0
-    for data in test_loader:
+    for data in valid_loader:
         if not parall:
             data = data.to(device)
         output = model(data)
@@ -732,28 +716,28 @@ def test():
 
 train_losses = []
 train_acces = []
-test_acces = []
-test_losses = []
+valid_acces = []
+valid_losses = []
 for epoch in range(1, 201):
     report = (epoch) % 10 == 0
     train_loss, train_acc = train(epoch, report=report)
-    test_loss, test_acc = test()
+    valid_loss, valid_acc = valid()
     train_losses.append(train_loss.cpu().detach().numpy())
-    test_losses.append(test_loss)
+    valid_losses.append(valid_loss)
     train_acces.append(train_acc)
-    test_acces.append(test_acc)
+    valid_acces.append(valid_acc)
     if report:
-        print("Test Loss: {:.3g}, Acc: {:.4f}".format(test_loss, test_acc))
+        print("valid Loss: {:.3g}, Acc: {:.4f}".format(valid_loss, valid_acc))
 
 plt.figure()
 plt.plot(train_acces, label="train acc", linewidth=3)
-plt.plot(test_acces, label="test acc", linewidth=3)
+plt.plot(valid_acces, label="valid acc", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
 plt.show()
 plt.plot(train_losses, c="tab:blue", label="train loss", linewidth=3)
-plt.plot(test_losses, c="tab:orange", label="test loss", linewidth=3)
+plt.plot(valid_losses, c="tab:orange", label="valid loss", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
@@ -762,7 +746,7 @@ plt.show()
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=False,
 )
 
@@ -782,7 +766,7 @@ train_auc = auc(fpr_train, tpr_train)
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=False,
 )
 
@@ -796,14 +780,14 @@ for tb in loader_auc:
 outs = np.concatenate(outs)
 ys = np.concatenate(ys)
 
-fpr_test, tpr_test, _ = roc_curve(ys, outs[:, 1])
-test_auc = auc(fpr_test, tpr_test)
+fpr_valid, tpr_valid, _ = roc_curve(ys, outs[:, 1])
+valid_auc = auc(fpr_valid, tpr_valid)
 
 plt.plot(
     fpr_train, tpr_train, lw=2, label="ROC curve (area = %0.3f)" % train_auc,
 )
 plt.plot(
-    fpr_test, tpr_test, lw=2, label="ROC curve (area = %0.3f)" % test_auc,
+    fpr_valid, tpr_valid, lw=2, label="ROC curve (area = %0.3f)" % valid_auc,
 )
 plt.plot([0, 1], [0, 1], color="black", lw=1, linestyle="--")
 plt.xlim([0.0, 1.0])
@@ -816,7 +800,7 @@ plt.show()
 
 # %%
 
-# Training on brain data using GCN2 architecture
+# Training on kidney data using GCN2 architecture
 
 # Hyperparameters etc:
 
@@ -850,39 +834,32 @@ dataset = TCGAData.TCGADataset(
     files=files,
     label_mapping=label_mapping,
     gene_graph="global.geneSymbol.gz",
-    transform=pre_transform,
+    pre_transform=pre_transform,
     suffix="sparse_binary",
 )
 
 
-rng = np.random.default_rng(2022)
-rnd_perm = rng.permutation(len(dataset))
-train_indices = list(rnd_perm[: 3 * len(dataset) // 4])
-test_indices = list(rnd_perm[3 * len(dataset) // 4 :])
 train_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=True,
 )
-test_loader = DataLoader(
+valid_loader = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=True,
 )
 
-assert len(train_indices) + len(test_indices) == len(
-    dataset
-), "Train test split with overlap or unused samples!"
 
 model = GCN2Net(
-    hidden_channels=2048,
+    hidden_channels=1024,
     num_layers=4,
     alpha=0.5,
     theta=1.0,
     shared_weights=False,
-    dropout=0.2,
+    dropout=0.8,
 ).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 criterion = F.nll_loss
@@ -898,6 +875,10 @@ def train(epoch, report=True):
     if epoch == 90:
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr * 0.1
+
+    if epoch == 170:
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = lr * 0.03
 
     total_loss = 0
     correct = 0
@@ -935,13 +916,13 @@ def train(epoch, report=True):
     return total_loss / num_samps, correct / num_samps
 
 
-def test():
+def valid():
     model.eval()
     correct = 0
 
     total_loss = 0
     num_samps = 0
-    for data in test_loader:
+    for data in valid_loader:
         if not parall:
             data = data.to(device)
         output = model(data)
@@ -962,28 +943,28 @@ def test():
 
 train_losses = []
 train_acces = []
-test_acces = []
-test_losses = []
-for epoch in range(1, 201):
+valid_acces = []
+valid_losses = []
+for epoch in range(1, 301):
     report = (epoch) % 20 == 0
     train_loss, train_acc = train(epoch, report=report)
-    test_loss, test_acc = test()
+    valid_loss, valid_acc = valid()
     train_losses.append(train_loss.cpu().detach().numpy())
-    test_losses.append(test_loss)
+    valid_losses.append(valid_loss)
     train_acces.append(train_acc)
-    test_acces.append(test_acc)
+    valid_acces.append(valid_acc)
     if report:
-        print("Test Loss: {:.3g}, Acc: {:.4f}".format(test_loss, test_acc))
+        print("valid Loss: {:.3g}, Acc: {:.4f}".format(valid_loss, valid_acc))
 
 plt.figure()
 plt.plot(train_acces, label="train acc", linewidth=3)
-plt.plot(test_acces, label="test acc", linewidth=3)
+plt.plot(valid_acces, label="valid acc", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
 plt.show()
 plt.plot(train_losses, c="tab:blue", label="train loss", linewidth=3)
-plt.plot(test_losses, c="tab:orange", label="test loss", linewidth=3)
+plt.plot(valid_losses, c="tab:orange", label="valid loss", linewidth=3)
 plt.legend(prop={"size": 16})
 plt.xlabel("epoch", fontsize=16)
 plt.grid()
@@ -992,7 +973,7 @@ plt.show()
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(train_indices),
+    sampler=SubsetRandomSampler(dataset.train_idx),
     drop_last=False,
 )
 
@@ -1012,7 +993,7 @@ train_auc = auc(fpr_train, tpr_train)
 loader_auc = DataLoader(
     dataset,
     batch_size=batch,
-    sampler=SubsetRandomSampler(test_indices),
+    sampler=SubsetRandomSampler(dataset.valid_idx),
     drop_last=False,
 )
 
@@ -1026,14 +1007,14 @@ for tb in loader_auc:
 outs = np.concatenate(outs)
 ys = np.concatenate(ys)
 
-fpr_test, tpr_test, _ = roc_curve(ys, outs[:, 1])
-test_auc = auc(fpr_test, tpr_test)
+fpr_valid, tpr_valid, _ = roc_curve(ys, outs[:, 1])
+valid_auc = auc(fpr_valid, tpr_valid)
 
 plt.plot(
     fpr_train, tpr_train, lw=2, label="ROC curve (area = %0.3f)" % train_auc,
 )
 plt.plot(
-    fpr_test, tpr_test, lw=2, label="ROC curve (area = %0.3f)" % test_auc,
+    fpr_valid, tpr_valid, lw=2, label="ROC curve (area = %0.3f)" % valid_auc,
 )
 plt.plot([0, 1], [0, 1], color="black", lw=1, linestyle="--")
 plt.xlim([0.0, 1.0])
