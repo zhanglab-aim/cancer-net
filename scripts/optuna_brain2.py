@@ -17,7 +17,7 @@ class EarlyStopping():
     Early stopping to stop the training when the loss does not improve after
     certain epochs.
     """
-    def __init__(self, patience=10, min_delta=0):
+    def __init__(self, patience=10, min_delta=0.005):
         """
         :param patience: how many epochs to wait before stopping when loss is
                not improving
@@ -151,7 +151,7 @@ class Objective(object):
     def __call__(self,trial):
         print("Suggesting trial")
         # get the value of the hyperparameters
-        lr        = trial.suggest_float("lr", 1e-5, 5e-2, log=True)
+        lr        = trial.suggest_float("lr", 5e-5, 5e-2, log=True)
         self.alpha     = trial.suggest_float("alpha", 0.2, 0.8)
         self.dropout   = trial.suggest_float("dropout", 0.1, 0.4)
         print("Suggested trial")
@@ -179,7 +179,7 @@ class Objective(object):
             dropout=self.dropout).to(device)
         wandb.watch(self.model, log_freq=1)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.3, patience=10)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.3, patience=7)
         early_stopping=EarlyStopping()
         self.criterion = F.nll_loss
         train_losses = []
@@ -205,7 +205,7 @@ class Objective(object):
                 early_stopping(test_loss)
                 if early_stopping.early_stop:
                     wandb.finish()
-                    trial.study.stop()
+                    #trial.study.stop()
                     break
         wandb.finish()
 
