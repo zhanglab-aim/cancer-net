@@ -17,7 +17,7 @@ class EarlyStopping():
     Early stopping to stop the training when the loss does not improve after
     certain epochs.
     """
-    def __init__(self, patience=10, min_delta=0.005):
+    def __init__(self, patience=6, min_delta=0.02):
         """
         :param patience: how many epochs to wait before stopping when loss is
                not improving
@@ -42,51 +42,46 @@ class EarlyStopping():
                 self.early_stop = True
 
 class Objective(object):
-    def __init__(self,arch,root,rng,batch,epochs,device):
+    def __init__(self,arch,root,valid_seed,batch,epochs,device,hidden):
         self.arch=arch
         self.root=root
-        self.rng=rng
+        self.valid_seed=valid_seed
         self.batch=batch
         self.epochs=epochs
         self.device=device
-        
+        self.hidden=hidden 
         ## hardcoding this false for now
         self.parall=False
         
+        files = "/mnt/home/sgolkar/projects/cancer-net/data/brain/samples.txt" 
         ## Should be able to construct the dataset before __call__
         ## as this won't change for different trials
         label_mapping = ["LGG", "GBM"]
         pre_transform = T.Compose([T.GCNNorm(), T.ToSparseTensor()])
-        self.dataset = TCGAData.TCGADataset(
-            root=self.root,
-            files=self.root+"/samples.txt",
+
+        dataset = TCGAData.TCGADataset(
+            root=root,
+            files=files,
             label_mapping=label_mapping,
             gene_graph="brain.geneSymbol.gz",
-            transform=pre_transform,
+            pre_transform=pre_transform,
             suffix="sparse",
+            valid_seed=valid_seed,
         )
 
-        rng = np.random.default_rng(self.rng)
-        rnd_perm = rng.permutation(len(self.dataset))
-        self.train_indices = list(rnd_perm[: 3 * len(self.dataset) // 4])
-        self.test_indices = list(rnd_perm[3 * len(self.dataset) // 4 :])
         self.train_loader = DataLoader(
-            self.dataset,
-            batch_size=self.batch,
-            sampler=SubsetRandomSampler(self.train_indices),
+            dataset,
+            batch_size=batch,
+            sampler=SubsetRandomSampler(dataset.train_idx),
             drop_last=True,
         )
-        self.test_loader = DataLoader(
-            self.dataset,
-            batch_size=self.batch,
-            sampler=SubsetRandomSampler(self.test_indices),
+        self.valid_loader = DataLoader(
+            dataset,
+            batch_size=batch,
+            sampler=SubsetRandomSampler(dataset.valid_idx),
             drop_last=True,
-        )
+        ) 
 
-        assert len(self.train_indices) + len(self.test_indices) == len(
-            self.dataset
-        ), "Train test split with overlap or unused samples!"
-    
     def train(self, epoch, report=True):
         self.model.train()
         total_loss = 0
@@ -124,13 +119,13 @@ class Objective(object):
 
         return total_loss / num_samps, correct / num_samps
     
-    def test(self):
+    def valid(self):
         self.model.eval()
         correct = 0
 
         total_loss = 0
         num_samps = 0
-        for data in self.test_loader:
+        for data in self.valid_loader:
             if not self.parall:
                 data = data.to(device)
             output = self.model(data)
@@ -158,6 +153,7 @@ class Objective(object):
         ## Store hyperparams in a config for wandb
         config = {"learning rate": lr,
                  "epochs": self.epochs,
+                 "hidden": self.hidden,
                  "batch size": self.batch,
                  "arch": self.arch,
                  "alpha": self.alpha,
@@ -169,9 +165,9 @@ class Objective(object):
         print("dropout: {}".format(self.dropout))
 
         wandb.login()
-        wandb.init(project="brain-GCN2", entity="chris-pedersen",config=config)
+        wandb.init(project="brain-GCN2-256", entity="chris-pedersen",config=config)
         self.model = GCN2Net(
-            hidden_channels=2048,
+            hidden_channels=self.hidden,
             num_layers=4,
             alpha=self.alpha,
             theta=1.0,
@@ -184,25 +180,25 @@ class Objective(object):
         self.criterion = F.nll_loss
         train_losses = []
         train_acces = []
-        test_acces = []
-        test_losses = []
+        valid_acces = []
+        valid_losses = []
         for epoch in range(1, self.epochs):
             report = (epoch) % 10 == 0
             train_loss, train_acc = self.train(epoch, report=report)
-            test_loss, test_acc = self.test()
+            valid_loss, valid_acc = self.valid()
             train_losses.append(train_loss.cpu().detach().numpy())
-            test_losses.append(test_loss)
+            valid_losses.append(valid_loss)
             train_acces.append(train_acc)
-            test_acces.append(test_acc)
+            valid_acces.append(valid_acc)
             wandb.log({"train loss": train_loss,
-                       "test loss": test_loss,
+                       "valid loss": valid_loss,
                        "train accuracy": train_acc,
-                       "test accuracy": test_acc,
+                       "valid accuracy": valid_acc,
                        "learning rate": self.optimizer.param_groups[0]["lr"]})
             if report:
-                print("Test Loss: {:.3g}, Acc: {:.4f}".format(test_loss, test_acc))
-            if epoch>50:
-                early_stopping(test_loss)
+                print("Valid Loss: {:.3g}, Acc: {:.4f}".format(valid_loss, valid_acc))
+            if epoch>60:
+                early_stopping(valid_loss)
                 if early_stopping.early_stop:
                     wandb.finish()
                     #trial.study.stop()
@@ -211,9 +207,10 @@ class Objective(object):
 
 arch = "GCN2"
 batch = 10
-rng = 2022
 parall = False
 epochs=200
+hidden=256
+valid_seed=0
 
 if torch.cuda.is_available():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -223,13 +220,13 @@ else:
 root = "/mnt/home/sgolkar/projects/cancer-net/data/brain"
 
 ## Optuna params
-study_name = "optuna/brain-GCN2"  # Unique identifier of the study.
+study_name = "optuna/brain-GCN2_256"  # Unique identifier of the study.
 storage_name = "sqlite:///{}.db".format(study_name)
 n_trials=30
 
 # train networks with bayesian optimization
-objective = Objective(arch,root,rng,batch,epochs,device)
-sampler = optuna.samplers.TPESampler(n_startup_trials=30)
+objective = Objective(arch,root,valid_seed,batch,epochs,device,hidden)
+sampler = optuna.samplers.TPESampler(n_startup_trials=50)
 study = optuna.create_study(study_name=study_name, sampler=sampler, storage=storage_name,
                             load_if_exists=True)
 study.optimize(objective, n_trials, gc_after_trial=False)
