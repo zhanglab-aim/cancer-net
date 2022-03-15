@@ -42,14 +42,15 @@ class EarlyStopping():
                 self.early_stop = True
 
 class Objective(object):
-    def __init__(self,arch,root,valid_seed,batch,epochs,device,hidden):
+    def __init__(self,arch,root,valid_seed,batch,epochs,device,hidden,name):
         self.arch=arch
         self.root=root
         self.valid_seed=valid_seed
         self.batch=batch
         self.epochs=epochs
         self.device=device
-        self.hidden=hidden 
+        self.hidden=hidden
+        self.name=name 
         ## hardcoding this false for now
         self.parall=False
         
@@ -165,7 +166,7 @@ class Objective(object):
         print("dropout: {}".format(self.dropout))
 
         wandb.login()
-        wandb.init(project="brain-GCN2-256", entity="chris-pedersen",config=config)
+        wandb.init(project="brain-%s" % self.name, entity="chris-pedersen",config=config)
         self.model = GCN2Net(
             hidden_channels=self.hidden,
             num_layers=4,
@@ -206,6 +207,8 @@ class Objective(object):
         wandb.finish()
 
 arch = "GCN2"
+name = "scheduler"
+name = arch+"-"+name
 batch = 10
 parall = False
 epochs=200
@@ -220,12 +223,12 @@ else:
 root = "/mnt/home/sgolkar/projects/cancer-net/data/brain"
 
 ## Optuna params
-study_name = "optuna/brain-GCN2_256"  # Unique identifier of the study.
+study_name = "optuna/brain-"+name  # Unique identifier of the study.
 storage_name = "sqlite:///{}.db".format(study_name)
 n_trials=30
 
 # train networks with bayesian optimization
-objective = Objective(arch,root,valid_seed,batch,epochs,device,hidden)
+objective = Objective(arch,root,valid_seed,batch,epochs,device,hidden,name)
 sampler = optuna.samplers.TPESampler(n_startup_trials=50)
 study = optuna.create_study(study_name=study_name, sampler=sampler, storage=storage_name,
                             load_if_exists=True)
