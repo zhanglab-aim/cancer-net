@@ -158,11 +158,11 @@ class GCNNet(torch.nn.Module):
 
         # dimension stays 128
         x = F.relu(self.prop1(data.x, data.edge_index, data.edge_attr))
-        # x = F.dropout(x, p=0.5, training=self.training)
+        #x = F.dropout(x, p=0.5, training=self.training)
 
         # dimension goes down to 64
         x1 = F.relu(self.prop2(x, data.edge_index, data.edge_attr))
-        # x1 = F.dropout(x1, p=0.5, training=self.training)
+        #x1 = F.dropout(x1, p=0.5, training=self.training)
 
         # global pooling leads us into non-graph neural net territory
         x2 = global_mean_pool(x1, data.batch)
@@ -170,7 +170,7 @@ class GCNNet(torch.nn.Module):
 
         # back to 128-dimensions, then down to the number of classes
         x = F.relu(self.fc1(x))
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=0.2, training=self.training)
         x = self.fc2(x)
         # x = F.dropout(x, p=0.5, training=self.training)
 
@@ -224,6 +224,7 @@ class GCN2Net(torch.nn.Module):
         num_layers: int,
         alpha: float,
         theta: float,
+        dim: int = 128,
         num_classes: int = 2,
         shared_weights: bool = True,
         dropout: float = 0.0,
@@ -233,7 +234,7 @@ class GCN2Net(torch.nn.Module):
 
         # ModuleList makes PyTorch aware of the parameters for each module in the list
         self.lins = torch.nn.ModuleList()
-        self.lins.append(torch.nn.Linear(128, hidden_channels))
+        self.lins.append(torch.nn.Linear(dim, hidden_channels))
         self.lins.append(torch.nn.Linear(hidden_channels * 2, hidden_channels // 2))
         self.lins.append(torch.nn.Linear(hidden_channels // 2, num_classes))
 
