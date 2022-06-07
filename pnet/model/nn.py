@@ -200,7 +200,7 @@ class Model(BaseEstimator):
 
         if self.class_weight == 'auto':
             classes = np.unique(y_train)
-            class_weights = class_weight.compute_class_weight('balanced', classes, y_train.ravel())
+            class_weights = class_weight.compute_class_weight(class_weight='balanced', classes=classes, y=y_train.ravel())
             class_weights = dict(list(zip(classes, class_weights)))
         else:
             class_weights = self.class_weight
@@ -230,7 +230,8 @@ class Model(BaseEstimator):
         history = self.model.fit(X_train, y_train, validation_data=validation_data, epochs=self.nb_epoch,
                                  batch_size=self.batch_size,
                                  verbose=self.verbose, callbacks=callbacks,
-                                 shuffle=self.shuffle, class_weight=class_weights)
+                                 shuffle=self.shuffle,)
+                                 #class_weight=class_weights)
 
         '''
         saving history

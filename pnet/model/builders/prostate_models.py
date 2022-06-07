@@ -135,7 +135,7 @@ def build_pnet2(optimizer, w_reg, w_reg_outcomes, add_unk_genes=True, sparse=Tru
 
     ins = Input(shape=(n_features,), dtype='float32', name='inputs')
 
-    outcome, decision_outcomes, feature_n = get_pnet(ins,
+    outcome, decision_outcomes, feature_n, pathway_map = get_pnet(ins,
                                                      features=features,
                                                      genes=genes,
                                                      n_hidden_layers=n_hidden_layers,
@@ -190,7 +190,7 @@ def build_pnet2(optimizer, w_reg, w_reg_outcomes, add_unk_genes=True, sparse=Tru
     print(get_layers(model))
     logging.info(model.summary())
     logging.info('# of trainable params of the model is %s' % model.count_params())
-    return model, feature_names
+    return model, feature_names, pathway_map
 
 
 def apply_models(models, inputs):

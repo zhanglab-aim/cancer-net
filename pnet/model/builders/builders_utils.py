@@ -36,33 +36,34 @@ def get_map_from_layer(layer_dict):
     return df.T
 
 
-def get_layer_maps(genes, n_levels, direction, add_unk_genes):
+def get_layer_maps(genes, n_levels, direction, add_unk_genes, verbose=False):
     reactome_layers = ReactomeNetwork().get_layers(n_levels, direction)
     filtering_index = genes
     maps = []
     for i, layer in enumerate(reactome_layers[::-1]):
-        print('layer #', i)
+        if verbose: print('layer #', i)
         mapp = get_map_from_layer(layer)
         filter_df = pd.DataFrame(index=filtering_index)
-        print('filtered_map', filter_df.shape)
+        if verbose: print('filtered_map', filter_df.shape)
         filtered_map = filter_df.merge(mapp, right_index=True, left_index=True, how='left')
         # filtered_map = filter_df.merge(mapp, right_index=True, left_index=True, how='inner')
-        print('filtered_map', filter_df.shape)
+        if verbose: print('filtered_map', filter_df.shape)
         # filtered_map = filter_df.merge(mapp, right_index=True, left_index=True, how='inner')
 
         # UNK, add a node for genes without known reactome annotation
         if add_unk_genes:
-            print('UNK ')
+            if verbose: print('UNK ')
             filtered_map['UNK'] = 0
             ind = filtered_map.sum(axis=1) == 0
             filtered_map.loc[ind, 'UNK'] = 1
         ####
 
         filtered_map = filtered_map.fillna(0)
-        print('filtered_map', filter_df.shape)
+        if verbose: print('filtered_map', filter_df.shape)
         # filtering_index = list(filtered_map.columns)
         filtering_index = filtered_map.columns
-        logging.info('layer {} , # of edges  {}'.format(i, filtered_map.sum().sum()))
+        if verbose:
+            logging.info('layer {} , # of edges  {}'.format(i, filtered_map.sum().sum()))
         maps.append(filtered_map)
     return maps
 
@@ -241,4 +242,4 @@ def get_pnet(inputs, features, genes, n_hidden_layers, direction, activation, ac
         i = len(maps)
         feature_names['h{}'.format(i - 1)] = maps[-1].index
         # feature_names.append(maps[-1].index)
-    return outcome, decision_outcomes, feature_names
+    return outcome, decision_outcomes, feature_names, maps
