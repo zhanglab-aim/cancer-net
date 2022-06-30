@@ -106,6 +106,7 @@ class Net(torch.nn.Module):
 
         return x
 
+
 class GATNet(torch.nn.Module):
     def __init__(
         self,
@@ -128,9 +129,11 @@ class GATNet(torch.nn.Module):
         self.fc1 = torch.nn.Linear(dims[2], dims[3])
         self.fc2 = torch.nn.Linear(dims[3], num_classes)
         self.m = nn.LogSoftmax(dim=1)
-        
-        self.gate_nn = nn.Sequential(nn.Linear(dims[2], 32), nn.ReLU(), nn.Linear(32, 1) )
-        self.pool = GlobalAttention(gate_nn = self.gate_nn)
+
+        self.gate_nn = nn.Sequential(
+            nn.Linear(dims[2], 32), nn.ReLU(), nn.Linear(32, 1)
+        )
+        self.pool = GlobalAttention(gate_nn=self.gate_nn)
 
         self.output_intermediate = output_intermediate
 
@@ -139,14 +142,14 @@ class GATNet(torch.nn.Module):
 
         # dimension stays 128
         x = F.relu(self.prop1(data.x, data.edge_index, data.edge_attr))
-        #x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=self.training)
 
         # dimension goes down to 64
         x1 = F.relu(self.prop2(x, data.edge_index, data.edge_attr))
-        #x1 = F.dropout(x1, p=0.5, training=self.training)
+        # x1 = F.dropout(x1, p=0.5, training=self.training)
 
         # global pooling leads us into non-graph neural net territory
-        #x2 = global_mean_pool(x1, data.batch)
+        # x2 = global_mean_pool(x1, data.batch)
         x2 = self.pool(x1, data.batch)
         x = F.dropout(x2, p=0.1, training=self.training)
 
@@ -217,11 +220,11 @@ class GCNNet(torch.nn.Module):
 
         # dimension stays 128
         x = F.relu(self.prop1(data.x, data.edge_index, data.edge_attr))
-        #x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=self.training)
 
         # dimension goes down to 64
         x1 = F.relu(self.prop2(x, data.edge_index, data.edge_attr))
-        #x1 = F.dropout(x1, p=0.5, training=self.training)
+        # x1 = F.dropout(x1, p=0.5, training=self.training)
 
         # global pooling leads us into non-graph neural net territory
         x2 = global_mean_pool(x1, data.batch)
