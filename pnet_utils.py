@@ -27,6 +27,7 @@ class PnetDataSet(InMemoryDataset):
                  name='prostate_graph_humanbase',
                  edge_tol=0.5,
                  root: Optional[str] = './data/prostate/',
+                 files: Optional[dict] = None,
                  transform: Optional[Callable] = None,
                  pre_transform: Optional[Callable] = None,
                  valid_ratio: float = 0.15,
@@ -37,6 +38,7 @@ class PnetDataSet(InMemoryDataset):
         #self.all_data, self.response, self.edge_dict, self.edge_tol = all_data, response, edge_dict, edge_tol
         self.edge_tol = edge_tol
         self.name = name
+        self._files = files or {}
         super(PnetDataSet, self).__init__(root, transform, pre_transform)
 
         # load the processed dataset
@@ -52,7 +54,7 @@ class PnetDataSet(InMemoryDataset):
     
     def process(self):
         t0 = time.time()
-        all_data, response, edge_dict = pnet_utils.data_reader(filename_dict=self.raw_file_names)
+        all_data, response, edge_dict = data_reader(filename_dict=self.raw_file_names)
         print(f"read raw data took {time.time()-t0:.2f} seconds")
         #response = pnet_utils.cached_data['response'].loc[all_data.index]
         self.response, self.edge_dict = response, edge_dict
@@ -160,14 +162,14 @@ class PnetDataSet(InMemoryDataset):
     def raw_file_names(self):
         return {
                 # non-tumor-specific data
-                "graph_file": "./data/prostate/prostate_gland.geneSymbol.gz",
-                "selected_genes": "./data/prostate/tcga_prostate_expressed_genes_and_cancer_genes.csv",
-                "use_coding_genes_only": "./data/prostate/protein-coding_gene_with_coordinate_minimal.txt",
+                "graph_file": os.path.join(self.root, self._files.get("graph_file", "prostate_gland.geneSymbol.gz")),
+                "selected_genes": os.path.join(self.root, self._files.get("selected_genes", "tcga_prostate_expressed_genes_and_cancer_genes.csv")),
+                "use_coding_genes_only": os.path.join(self.root, self._files.get("use_coding_genes_only", "protein-coding_gene_with_coordinate_minimal.txt")),
                 # tumor data
-                "response": "./data/prostate/response_paper.csv",
-                "mut_important": "./data/prostate/P1000_final_analysis_set_cross_important_only.csv",
-                "cnv_amp": "./data/prostate/P1000_data_CNA_paper.csv",
-                "cnv_del": "./data/prostate/P1000_data_CNA_paper.csv",
+                "response": os.path.join(self.root, self._files.get("response", "response_paper.csv")),
+                "mut_important": os.path.join(self.root, self._files.get("mut_important", "P1000_final_analysis_set_cross_important_only.csv")),
+                "cnv_amp": os.path.join(self.root, self._files.get("cnv_amp", "P1000_data_CNA_paper.csv")),
+                "cnv_del": os.path.join(self.root, self._files.get("cnv_del", "P1000_data_CNA_paper.csv")),
             }
 
     @property
