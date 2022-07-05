@@ -234,7 +234,8 @@ def data_reader(filename_dict):
     # sanity checks for filename_dict
     assert "response" in filename_dict, "must parse a response file"
     for f in filename_dict.values():
-        assert os.path.isfile(f), FileNotFoundError(f)
+        if not os.path.isfile(f):
+            raise FileNotFoundError(f)
     fd = copy.deepcopy(filename_dict)
     # first get non-tumor genomic/config data types out
     edge_dict = graph_reader_and_processor(graph_file=fd.pop("graph_file"))
