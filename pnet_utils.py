@@ -45,19 +45,13 @@ class PnetDataSet(InMemoryDataset):
 
         # load the processed dataset
         self.data, self.slices = torch.load(self.processed_paths[0])
-        # call pyg
         self.num_samples = len(self.data.y)
         self.num_test_samples = int(test_ratio * self.num_samples)
         self.num_valid_samples = int(valid_ratio * self.num_samples)
         self.num_train_samples = (
             self.num_samples - self.num_test_samples - self.num_valid_samples
         )
-        self.split_index_by_rng(
-            test_seed=test_seed,
-            valid_seed=valid_seed,
-            test_ratio=test_ratio,
-            valid_ratio=valid_ratio,
-        )
+        self.split_index_by_rng(test_seed=test_seed, valid_seed=valid_seed)
 
     def process(self):
         t0 = time.time()
@@ -126,7 +120,7 @@ class PnetDataSet(InMemoryDataset):
         self.data, self.slices = self.collate(data_list)
         torch.save((self.data, self.slices), self.processed_paths[0])
 
-    def split_index_by_rng(self, test_seed, valid_seed, test_ratio, valid_ratio):
+    def split_index_by_rng(self, test_seed, valid_seed):
         # train/valid/test random generators
         rng_test = np.random.default_rng(test_seed)
         rng_valid = np.random.default_rng(valid_seed)
