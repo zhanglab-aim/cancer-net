@@ -344,11 +344,11 @@ def get_response(response_filename):
     labels = labels.set_index("id")
     if "response" in cached_data:
         logging.warning(
-            "response in cached_data if being overwritten by '%s'" % response_filename
+            "response in cached_data is being overwritten by '%s'" % response_filename
         )
     else:
         logging.warning(
-            "response in cached_data if being set by '%s'" % response_filename
+            "response in cached_data is being set by '%s'" % response_filename
         )
 
     cached_data["response"] = labels
