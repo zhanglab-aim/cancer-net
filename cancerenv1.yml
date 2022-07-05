@@ -1,3 +1,6 @@
+name:
+    cancerenv
+
 channels:
 - defaults
 - conda-forge
@@ -16,6 +19,7 @@ dependencies:
  - deepdish
  - h5py
  - matplotlib
+ - seaborn
  - pytables
  - ase
  - certifi
