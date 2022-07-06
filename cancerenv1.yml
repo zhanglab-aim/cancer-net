@@ -18,6 +18,8 @@ dependencies:
  - scipy
  - deepdish
  - h5py
+ - optuna
+ - wandb
  - matplotlib
  - seaborn
  - pytables
