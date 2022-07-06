@@ -3,3 +3,4 @@
 _*
 venv
 graph/
+*.egg-info

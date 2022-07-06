@@ -1,22 +1,22 @@
 import os
-import pandas as pd
-import numpy as np
-import logging
+import time
+
 import copy
 import gzip
-import time
-import tqdm
+import logging
 import pickle
+import tqdm
+
+import numpy as np
+import pandas as pd
+
 from collections import defaultdict
-from torch_geometric.data import InMemoryDataset
-from typing import Union, Optional, Callable
+from typing import Optional, Callable
 
 # for graph building
 import torch
-import torch, torch_geometric.transforms as T, torch.nn.functional as F
-from torch_geometric.data import InMemoryDataset
+from torch_geometric.data import InMemoryDataset, Data
 from torch_geometric.utils import remove_self_loops
-from torch_geometric.data import Data
 from torch_sparse import coalesce
 
 cached_data = {}  # all data read will be referenced here
