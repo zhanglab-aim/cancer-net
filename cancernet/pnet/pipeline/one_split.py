@@ -10,14 +10,16 @@ import scipy.sparse
 import yaml
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
-from data.data_access import Data
-from model.model_factory import get_model
-from pipeline.pipe_utils import get_model_id, get_coef_from_model, get_balanced
-from preprocessing import pre
-from utils.evaluate import evalualte_survival, evalualte_classification_binary, evalualte_regression
-from utils.plots import generate_plots, plot_roc, plot_prc, save_confusion_matrix
+
+from cancernet.pnet.data.data_access import Data
+from cancernet.pnet.model.model_factory import get_model
+from cancernet.pnet.pipeline.pipe_utils import get_model_id, get_coef_from_model, get_balanced
+from cancernet.pnet.preprocessing import pre
+from cancernet.pnet.utils.evaluate import evalualte_survival, evalualte_classification_binary, evalualte_regression
+from cancernet.pnet.utils.plots import generate_plots, plot_roc, plot_prc, save_confusion_matrix
+from cancernet.pnet.utils.rnd import set_random_seeds
+
 # timeStamp = '_{0:%b}-{0:%d}_{0:%H}-{0:%M}'.format(datetime.datetime.now())
-from utils.rnd import set_random_seeds
 
 
 def save_model(model, model_name, directory_name):

@@ -10,11 +10,11 @@ import pandas as pd
 import yaml
 from sklearn.model_selection import StratifiedKFold
 
-from data.data_access import Data
-from model.model_factory import get_model
-from pipeline.one_split import OneSplitPipeline
-from utils.plots import plot_box_plot
-from utils.rnd import set_random_seeds
+from cancernet.pnet.data.data_access import Data
+from cancernet.pnet.model.model_factory import get_model
+from cancernet.pnet.pipeline.one_split import OneSplitPipeline
+from cancernet.pnet.utils.plots import plot_box_plot
+from cancernet.pnet.utils.rnd import set_random_seeds
 
 timeStamp = '_{0:%b}-{0:%d}_{0:%H}-{0:%M}'.format(datetime.datetime.now())
 

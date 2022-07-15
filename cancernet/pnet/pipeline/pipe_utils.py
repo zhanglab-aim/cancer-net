@@ -6,18 +6,18 @@ import pandas as pd
 
 abs_ = True
 from matplotlib import pyplot as plt
-from utils.plots import plot_roc
+from cancernet.pnet.utils.plots import plot_roc
 import numpy as np
 
 
 def save_coef(fs_model_list, columns, directory, relevant_features):
     coef_df = pd.DataFrame(index=columns)
 
-    dir_name = join(directory, 'fs')
+    dir_name = join(directory, "fs")
     if not exists(dir_name):
         makedirs(dir_name)
 
-    if hasattr(columns, 'levels'):
+    if hasattr(columns, "levels"):
         genes_list = columns.levels[0]
     else:
         genes_list = columns
@@ -28,18 +28,18 @@ def save_coef(fs_model_list, columns, directory, relevant_features):
         model_name = get_model_id(model_params)
 
         c_ = model.get_coef()
-        logging.info('saving coef ')
+        logging.info("saving coef ")
 
         model_name_col = model_name
 
-        if hasattr(model, 'get_named_coef'):
-            print('save_feature_importance')
-            file_name = join(dir_name, 'coef_' + model_name)
+        if hasattr(model, "get_named_coef"):
+            print("save_feature_importance")
+            file_name = join(dir_name, "coef_" + model_name)
             coef = model.get_named_coef()
             if type(coef) == list:
                 for i, c in enumerate(coef):
                     if type(c) == pd.DataFrame:
-                        c.to_csv(file_name + str(i) + '.csv')
+                        c.to_csv(file_name + str(i) + ".csv")
 
         if type(c_) == list:
             coef_df[model_name_col] = c_[0]
@@ -111,24 +111,24 @@ def save_coef(fs_model_list, columns, directory, relevant_features):
                 c = c_
             plot_roc(relevant_features, c, dir_name, label=model_name)
 
-    plt.savefig(join(dir_name, 'auc_curves'))
-    file_name = join(dir_name, 'coef.csv')
+    plt.savefig(join(dir_name, "auc_curves"))
+    file_name = join(dir_name, "coef.csv")
     coef_df.to_csv(file_name)
 
 
 def report_density(model_list):
-    logging.info('model density')
+    logging.info("model density")
 
     for model, model_params in model_list:
         model_name = get_model_id(model_params)
-        logging.info('' + model_name + ': ' + str(model.get_density()))
+        logging.info("" + model_name + ": " + str(model.get_density()))
 
 
 def get_model_id(model_params):
-    if 'id' in model_params:
-        model_name = model_params['id']
+    if "id" in model_params:
+        model_name = model_params["id"]
     else:
-        model_name = model_params['type']
+        model_name = model_params["type"]
     return model_name
 
 
@@ -142,7 +142,7 @@ def get_coef(coef_):
 
 def get_coef_from_model(model):
     coef = None
-    if hasattr(model, 'coef_'):
+    if hasattr(model, "coef_"):
         if type(model.coef_) == list:
             coef = [get_coef(c) for c in model.coef_]
         elif type(model.coef_) == dict:
@@ -150,10 +150,10 @@ def get_coef_from_model(model):
         else:
             coef = get_coef(model.coef_)
 
-    if hasattr(model, 'scores_'):
+    if hasattr(model, "scores_"):
         coef = model.scores_
 
-    if hasattr(model, 'feature_importances_'):
+    if hasattr(model, "feature_importances_"):
         coef = np.abs(model.feature_importances_)
     return coef
 
@@ -161,21 +161,21 @@ def get_coef_from_model(model):
 # get balanced x and y where the size of postivie samples equal the number of negative samples
 def get_balanced(x, y, info):
     print(type(x), type(y), type(info))
-    pos_ind = np.where(y == 1.)[0]
-    neg_ind = np.where(y == 0.)[0]
+    pos_ind = np.where(y == 1.0)[0]
+    neg_ind = np.where(y == 0.0)[0]
     n_pos = pos_ind.shape[0]
     n_neg = neg_ind.shape[0]
     n = min(n_pos, n_neg)
     # if debug_:
-    print('n_pos {} n_nge {} n {}'.format(n_pos, n_neg, n))
+    print("n_pos {} n_nge {} n {}".format(n_pos, n_neg, n))
     # pos_ind = pos_ind[:n]
     # neg_ind = neg_ind[:n]
 
     pos_ind = np.random.choice(pos_ind, size=n, replace=False)
     neg_ind = np.random.choice(neg_ind, size=n, replace=False)
 
-    print('pos_ind', pos_ind)
-    print('neg_ind', neg_ind)
+    print("pos_ind", pos_ind)
+    print("neg_ind", neg_ind)
     ind = np.concatenate([pos_ind, neg_ind])
     y = y[ind]
     x = x[ind, :]

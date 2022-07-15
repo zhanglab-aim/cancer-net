@@ -1,4 +1,4 @@
-from model.builders.prostate_models import build_pnet2_account_for
+from cancernet.pnet.model.builders.prostate_models import build_pnet2_account_for
 
 task = 'classification_binary'
 selected_genes = 'tcga_prostate_expressed_genes_and_cancer_genes.csv'
