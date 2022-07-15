@@ -1,6 +1,7 @@
 import os
 import pandas as pd
-from config_path import GENE_PATH
+import zipfile
+from cancernet.pnet.config_path import GENE_PATH
 from os.path import join, dirname, exists
 current_dir = dirname(__file__)
 
@@ -70,7 +71,6 @@ def prepare_PRAD():
     if not exists(saving_dir):
         os.makedirs(saving_dir)
 
-    import zipfile
     path_to_zip_file = join(saving_dir, '41586_2017_BFnature20788_MOESM324_ESM.zip')
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
         extract_dir = join(saving_dir, 'nature20788-s2')

@@ -2,15 +2,20 @@ import pickle
 import logging
 import os
 import time
+import sys
 
 from keras.models import Sequential
 from matplotlib import pyplot as plt
+
+from cancernet.pnet.model.coef_weights_utils import get_gradient_weights, get_permutation_weights, get_weights_linear_model, \
+    get_gradient_weights_with_repeated_output, get_weights_gradient_outcome, \
+    get_deep_explain_scores, get_shap_scores, get_skf_weights
+import numpy as np
 
 
 def save_model(model, filename):
     print('saving model in', filename)
     f = file(filename + '.pkl', 'wb')
-    import sys
     sys.setrecursionlimit(100000)
     pickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
     f.close()
@@ -47,12 +52,6 @@ def get_layers(model, level=1):
             layers.append(l)
 
     return layers
-
-
-from model.coef_weights_utils import get_gradient_weights, get_permutation_weights, get_weights_linear_model, \
-    get_gradient_weights_with_repeated_output, get_weights_gradient_outcome, \
-    get_deep_explain_scores, get_shap_scores, get_skf_weights
-import numpy as np
 
 
 def get_coef_importance(model, X_train, y_train, target, feature_importance, detailed=True, **kwargs):

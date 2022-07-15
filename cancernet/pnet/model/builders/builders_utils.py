@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.layers import Dense, Dropout, Activation, BatchNormalization, multiply
 from tensorflow.keras.regularizers import l2
+from keras.constraints import nonneg
 
 # from data.pathways.pathway_loader import get_pathway_files
-from data.pathways.reactome import ReactomeNetwork
-from model.layers_custom import Diagonal, SparseTF
+from cancernet.pnet.data.pathways.reactome import ReactomeNetwork
+from cancernet.pnet.model.layers_custom import Diagonal, SparseTF
 
 
 def get_map_from_layer(layer_dict):
@@ -107,7 +108,6 @@ def get_pnet(inputs, features, genes, n_hidden_layers, direction, activation, ac
     reg_l = l2
     constraints = {}
     if non_neg:
-        from keras.constraints import nonneg
         constraints = {'kernel_constraint': nonneg()}
         # constraints= {'kernel_constraint': nonneg(), 'bias_constraint':nonneg() }
     if sparse:

@@ -1,5 +1,7 @@
 # import theano
 
+# from keras.engine.topology import Layer
+import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 from tensorflow.keras import regularizers
@@ -9,6 +11,8 @@ from tensorflow.keras.initializers import glorot_uniform, Initializer
 from tensorflow.keras import activations, initializers, constraints
 # our layer will take input shape (nb_samples, 1)
 from tensorflow.keras.regularizers import Regularizer
+from scipy.sparse import csr_matrix
+from keras import backend as K
 
 
 class Attention(Layer):
@@ -193,10 +197,6 @@ class Diagonal(Layer):
         # dsve
         base_config = super(Diagonal, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
-# from keras.engine.topology import Layer
-import tensorflow as tf
 
 
 class SparseTF(Layer):
@@ -549,9 +549,6 @@ class SpraseLayerWithConnection(Layer):
         return (input_shape[0], self.units)
 
 
-from scipy.sparse import csr_matrix
-
-
 class RandomWithMap(Initializer):
     """Initializer that generates tensors initialized to random array.
     """
@@ -597,9 +594,6 @@ class L1L2_with_map(Regularizer):
     def get_config(self):
         return {'l1': float(self.l1),
                 'l2': float(self.l2)}
-
-
-from keras import backend as K
 
 
 # taken from https://stackoverflow.com/questions/43547402/how-to-calculate-f1-macro-in-keras

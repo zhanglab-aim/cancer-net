@@ -1,18 +1,20 @@
 from os.path import join
 
 import numpy as np
-# from data.gmt_reader import GMT
+
+# from cancernet.pnet.data.gmt_reader import GMT
 import pandas as pd
 from scipy import sparse as sp
 
-from data.data_access import Data
-# from data.pathways.pathway_loader import data_dir
-from data.gmt_reader import GMT
+from cancernet.pnet.data.data_access import Data
+
+# from cancernet.pnet.data.pathways.pathway_loader import data_dir
+from cancernet.pnet.data.gmt_reader import GMT
 
 
 def get_map(data, gene_dict, pathway_dict):
-    genes = data['gene']
-    pathways = data['group'].fillna('')
+    genes = data["gene"]
+    pathways = data["group"].fillna("")
 
     n_genes = len(gene_dict)
     n_pathways = len(pathway_dict) + 1
@@ -25,7 +27,7 @@ def get_map(data, gene_dict, pathway_dict):
 
     for i, p in enumerate(pathways):
         # print p, type(p)
-        if p == '':
+        if p == "":
             col_index[i] = n_pathways - 1
         else:
             col_index[i] = pathway_dict[p]
@@ -55,33 +57,33 @@ def get_connection_map(data_params):
 
     d = GMT()
     # pathways = d.load_data ('c4.all.v6.0.entrez.gmt')
-    pathways = d.load_data('c4.all.v6.0.symbols.gmt')
+    pathways = d.load_data("c4.all.v6.0.symbols.gmt")
     # pathways.to_csv('pathway.csv')
 
     # print pathways.head()
     # print pathways.shape
 
-    n_genes = len(pathways['gene'].unique())
-    n_pathways = len(pathways['group'].unique())
-    print('number of gene {}'.format(n_genes))
-    print('number of pathways {}'.format(n_pathways))
+    n_genes = len(pathways["gene"].unique())
+    n_pathways = len(pathways["group"].unique())
+    print("number of gene {}".format(n_genes))
+    print("number of pathways {}".format(n_pathways))
     density = pathways.shape[0] / (n_pathways * n_genes + 0.0)
-    print('density {}'.format(density))
+    print("density {}".format(density))
 
-    all = x.merge(pathways, right_on='gene', left_index=True, how='left')
+    all = x.merge(pathways, right_on="gene", left_index=True, how="left")
 
-    n_genes = len(all['gene'].unique())
-    n_pathways = len(all['group'].unique())
-    print('number of gene {}'.format(n_genes))
-    print('number of pathways {}'.format(n_pathways))
+    n_genes = len(all["gene"].unique())
+    n_pathways = len(all["group"].unique())
+    print("number of gene {}".format(n_genes))
+    print("number of pathways {}".format(n_pathways))
     density = all.shape[0] / (n_pathways * n_genes + 0.0)
-    print('density {}'.format(density))
+    print("density {}".format(density))
 
     # genes = all['gene']
     # pathways = all['group']
     # print all.shape
     gene_dict = get_dict(columns)
-    pathway_dict = get_dict(pathways['group'])
+    pathway_dict = get_dict(pathways["group"])
 
     # print gene_dict
     # print pathway_dict
@@ -114,7 +116,8 @@ def get_connections(data_params):
     d = GMT()
 
     pathways = d.load_data_dict(
-        'c2.cp.kegg.v6.1.symbols.gmt')  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
+        "c2.cp.kegg.v6.1.symbols.gmt"
+    )  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
     pathway_genes_map = []
     for p in list(pathways.keys()):
         common_genes = set(genes).intersection(set(pathways[p]))
@@ -143,7 +146,7 @@ def get_input_map(cols):
 
     row_index = list(range(n_inputs))
     n = len(row_index)
-    mapp = sp.coo_matrix(([1.] * n, (row_index, col_index)), shape=(n_inputs, n_genes))
+    mapp = sp.coo_matrix(([1.0] * n, (row_index, col_index)), shape=(n_inputs, n_genes))
     return mapp.toarray()
 
 
@@ -154,28 +157,32 @@ def get_input_map(cols):
 # genes_col: the start index of the gene columns
 # shuffle_genes: {True, False}
 # return mapp: dataframe with rows =genes and columns = pathways values = 1 or 0 based on the membership of certain gene in the corresponding pathway
-def get_layer_map(input_list, filename='c2.cp.kegg.v6.1.symbols.gmt', genes_col=1, shuffle_genes=False):
+def get_layer_map(
+    input_list, filename="c2.cp.kegg.v6.1.symbols.gmt", genes_col=1, shuffle_genes=False
+):
     d = GMT()
     df = d.load_data(filename, genes_col)
-    print('map # ones  before join {}'.format(df.shape[0]))
+    print("map # ones  before join {}".format(df.shape[0]))
 
-    df['value'] = 1
-    mapp = pd.pivot_table(df, values='value', index='gene', columns='group', aggfunc=np.sum)
+    df["value"] = 1
+    mapp = pd.pivot_table(
+        df, values="value", index="gene", columns="group", aggfunc=np.sum
+    )
     mapp = mapp.fillna(0)
     # print mapp.head()
-    print('map # ones  before join {}'.format(np.sum(mapp.as_matrix())))
+    print("map # ones  before join {}".format(np.sum(mapp.as_matrix())))
     cols_df = pd.DataFrame(index=input_list)
-    mapp = cols_df.merge(mapp, right_index=True, left_index=True, how='left')
+    mapp = cols_df.merge(mapp, right_index=True, left_index=True, how="left")
     mapp = mapp.fillna(0)
-    mapp.to_csv(join(data_dir, filename + '.csv'))
+    mapp.to_csv(join(data_dir, filename + ".csv"))
     genes = mapp.index
     pathways = mapp.columns
-    print('pathways', pathways)
+    print("pathways", pathways)
     # print mapp.head()
 
     mapp = mapp.as_matrix()
-    print('filename', filename)
-    print('map # ones  after join {}'.format(np.sum(mapp)))
+    print("filename", filename)
+    print("map # ones  after join {}".format(np.sum(mapp)))
 
     if shuffle_genes:
         # print mapp[0:10, 0:10]
@@ -193,14 +200,17 @@ def get_layer_map(input_list, filename='c2.cp.kegg.v6.1.symbols.gmt', genes_col=
     return mapp, genes, pathways
 
 
-def get_gene_map(input_list, filename='c2.cp.kegg.v6.1.symbols.gmt', genes_col=1, shuffle_genes=False):
+def get_gene_map(
+    input_list, filename="c2.cp.kegg.v6.1.symbols.gmt", genes_col=1, shuffle_genes=False
+):
     d = GMT()
     # returns a pthway dataframe
     # e.g.  pathway1 gene1
     #       pathway1 gene2
     #       pathway1 gene3
-    pathways = d.load_data(filename,
-                           genes_col)  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
+    pathways = d.load_data(
+        filename, genes_col
+    )  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
     # pathways = d.load_data('PathwayCommons9.kegg.hgnc.gmt')  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
     # pathways = d.load_data('ReactomePathways.gmt')  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
     # pathways = d.load_data('ReactomePathways_terminal.gmt')  # KEGG pathways downloaded from http://software.broadinstitute.org/gsea/msigdb/collections.jsp
@@ -221,25 +231,25 @@ def get_gene_map(input_list, filename='c2.cp.kegg.v6.1.symbols.gmt', genes_col=1
     # print 'pathways'
     # print pathways.shape
     # print pathways.head()
-    print('map # ones  before join {}'.format(pathways.shape[0]))
+    print("map # ones  before join {}".format(pathways.shape[0]))
 
     # limit the rows to the input_lis only
-    all = cols_df.merge(pathways, right_on='gene', left_index=True, how='left')
+    all = cols_df.merge(pathways, right_on="gene", left_index=True, how="left")
     # print 'joined'
     # print all.shape
     # print all.head()
-    print('UNK pathway', sum(pd.isnull(all['group'])))
+    print("UNK pathway", sum(pd.isnull(all["group"])))
 
     # ind = pd.isnull(all['group'])
     # print ind
     # print 'Known pathway', sum(~pd.isnull(all['group']))
 
-    all = all.fillna('UNK')
+    all = all.fillna("UNK")
     # print 'UNK genes', len(ind), sum(ind)
     # print all.loc[ind, :]
     # all = all.dropna()
 
-    all = all.set_index(['gene', 'group'])
+    all = all.set_index(["gene", "group"])
     # print all.head()
     index = all.index
 
@@ -257,13 +267,15 @@ def get_gene_map(input_list, filename='c2.cp.kegg.v6.1.symbols.gmt', genes_col=1
     # for p in index.levels[1]:
     #     print p
 
-    mapp = sp.coo_matrix(([1.] * n, (row_index, col_index)), shape=(n_genes, n_pathways))
+    mapp = sp.coo_matrix(
+        ([1.0] * n, (row_index, col_index)), shape=(n_genes, n_pathways)
+    )
 
     pathways = list(index.levels[1])
     genes = index.levels[0]
     mapp = mapp.toarray()
 
-    print('map # ones  after join {}'.format(np.sum(mapp)))
+    print("map # ones  after join {}".format(np.sum(mapp)))
 
     if shuffle_genes:
         # print mapp[0:10, 0:10]
@@ -286,6 +298,6 @@ def get_gene_map(input_list, filename='c2.cp.kegg.v6.1.symbols.gmt', genes_col=1
     #     pathways.remove('UNK')
 
     map_df = pd.DataFrame(mapp, index=genes, columns=pathways)
-    map_df.to_csv(join(data_dir, filename + '.csv'))
+    map_df.to_csv(join(data_dir, filename + ".csv"))
     return mapp, genes, pathways
     # return map_df
