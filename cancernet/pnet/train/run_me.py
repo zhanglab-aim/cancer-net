@@ -4,7 +4,7 @@ from os.path import join, dirname, realpath
 current_dir = dirname(realpath(__file__))
 sys.path.insert(0, dirname(current_dir))
 import os
-import imp
+import importlib
 import logging
 import random
 import timeit
@@ -39,71 +39,73 @@ def elapsed_time(start_time, end_time):
 params_file_list = []
 
 # pnet
-params_file_list.append("./pnet/onsplit_average_reg_10_tanh_large_testing")
-# params_file_list.append('./pnet/onsplit_average_reg_10_tanh_large_testing_inner')
-# params_file_list.append('./pnet/crossvalidation_average_reg_10_tanh')
+params_file_list.append(".pnet.onsplit_average_reg_10_tanh_large_testing")
+# params_file_list.append('.pnet.onsplit_average_reg_10_tanh_large_testing_inner')
+# params_file_list.append('.pnet.crossvalidation_average_reg_10_tanh')
 #
 # # other ML models
-# params_file_list.append('./compare/onsplit_ML_test')
-# params_file_list.append('./compare/crossvalidation_ML_test')
+# params_file_list.append('.compare.onsplit_ML_test')
+# params_file_list.append('.compare.crossvalidation_ML_test')
 #
 # # dense
-# params_file_list.append('./dense/onesplit_number_samples_dense_sameweights')
-# params_file_list.append('./dense/onsplit_dense')
+# params_file_list.append('.dense.onesplit_number_samples_dense_sameweights')
+# params_file_list.append('.dense.onsplit_dense')
 #
 # # number_samples
-# params_file_list.append('./number_samples/crossvalidation_average_reg_10')
-## params_file_list.append('./number_samples/crossvalidation_average_reg_10_tanh')
-# params_file_list.append('./number_samples/crossvalidation_number_samples_dense_sameweights')
+# params_file_list.append('.number_samples.crossvalidation_average_reg_10')
+## params_file_list.append('.number_samples.crossvalidation_average_reg_10_tanh')
+# params_file_list.append('.number_samples.crossvalidation_number_samples_dense_sameweights')
 #
 # # external_validation
-# params_file_list.append('./external_validation/pnet_validation')
+# params_file_list.append('.external_validation.pnet_validation')
 #
 # #reviews------------------------------------
 # #LOOCV
-# params_file_list.append('./review/LOOCV_reg_10_tanh')
+# params_file_list.append('.review.LOOCV_reg_10_tanh')
 # #ge
-# params_file_list.append('./review/onsplit_average_reg_10_tanh_large_testing_ge')
+# params_file_list.append('.review.onsplit_average_reg_10_tanh_large_testing_ge')
 # #fusion
-# params_file_list.append('./review/fusion/onsplit_average_reg_10_tanh_large_testing_TMB')
-# params_file_list.append('./review/fusion/onsplit_average_reg_10_tanh_large_testing_fusion')
-# params_file_list.append('./review/fusion/onsplit_average_reg_10_tanh_large_testing_fusion_zero')
-# params_file_list.append('./review/fusion/onsplit_average_reg_10_tanh_large_testing_inner_fusion_genes')
+# params_file_list.append('.review.fusion.onsplit_average_reg_10_tanh_large_testing_TMB')
+# params_file_list.append('.review.fusion.onsplit_average_reg_10_tanh_large_testing_fusion')
+# params_file_list.append('.review.fusion.onsplit_average_reg_10_tanh_large_testing_fusion_zero')
+# params_file_list.append('.review.fusion.onsplit_average_reg_10_tanh_large_testing_inner_fusion_genes')
 #
 # #single copy
-# params_file_list.append('./review/9single_copy/onsplit_average_reg_10_tanh_large_testing_single_copy')
-# params_file_list.append('./review/9single_copy/crossvalidation_average_reg_10_tanh_single_copy')
+# params_file_list.append('.review.9single_copy.onsplit_average_reg_10_tanh_large_testing_single_copy')
+# params_file_list.append('.review.9single_copy.crossvalidation_average_reg_10_tanh_single_copy')
 #
 # #custom arch
-# params_file_list.append('./review/10custom_arch/onsplit_kegg')
+# params_file_list.append('.review.10custom_arch.onsplit_kegg')
 #
 # #learning rate
-# params_file_list.append('./review/learning_rate/onsplit_average_reg_10_tanh_large_testing_inner_LR')
+# params_file_list.append('.review.learning_rate.onsplit_average_reg_10_tanh_large_testing_inner_LR')
 
 # hotspot
-# params_file_list.append('./review/9hotspot/onsplit_average_reg_10_tanh_large_testing_hotspot')
-# params_file_list.append('./review/9hotspot/onsplit_average_reg_10_tanh_large_testing_count')
+# params_file_list.append('.review.9hotspot.onsplit_average_reg_10_tanh_large_testing_hotspot')
+# params_file_list.append('.review.9hotspot.onsplit_average_reg_10_tanh_large_testing_count')
 
 # cancer genes
-# params_file_list.append('./review/onsplit_average_reg_10_tanh_large_testing')
-# params_file_list.append('./review/onsplit_average_reg_10_cancer_genes_testing')
-# params_file_list.append('./review/crossvalidation_average_reg_10_tanh_cancer_genes')
+# params_file_list.append('.review.onsplit_average_reg_10_tanh_large_testing')
+# params_file_list.append('.review.onsplit_average_reg_10_cancer_genes_testing')
+# params_file_list.append('.review.crossvalidation_average_reg_10_tanh_cancer_genes')
 
 # review 2 (second iteration of reviews)
-# params_file_list.append('./review/cnv_burden_training/onsplit_average_reg_10_tanh_large_testing_TMB2')
-# params_file_list.append('./review/cnv_burden_training/onsplit_average_reg_10_tanh_large_testing_account_zero2')
-# params_file_list.append('./review/cnv_burden_training/onsplit_average_reg_10_tanh_large_testing_TMB_cnv')
-# params_file_list.append('./review/cnv_burden_training/onsplit_average_reg_10_tanh_large_testing_cnv_burden2')
+# params_file_list.append('.review.cnv_burden_training.onsplit_average_reg_10_tanh_large_testing_TMB2')
+# params_file_list.append('.review.cnv_burden_training.onsplit_average_reg_10_tanh_large_testing_account_zero2')
+# params_file_list.append('.review.cnv_burden_training.onsplit_average_reg_10_tanh_large_testing_TMB_cnv')
+# params_file_list.append('.review.cnv_burden_training.onsplit_average_reg_10_tanh_large_testing_cnv_burden2')
 
 for params_file in params_file_list:
     log_dir = join(PROSTATE_LOG_PATH, params_file)
     log_dir = log_dir
     set_logging(log_dir)
-    params_file = join(POSTATE_PARAMS_PATH, params_file)
+    # params_file = join(POSTATE_PARAMS_PATH, params_file)
     logging.info("random seed %d" % random_seed)
-    params_file_full = params_file + ".py"
+    # params_file_full = params_file + ".py"
+    params_file_full = "cancernet.pnet.train.params.P1000" + params_file
     print(params_file_full)
-    params = imp.load_source(params_file, params_file_full)
+    # params = imp.load_source(params_file, params_file_full)
+    params = importlib.import_module(params_file_full)
 
     DebugFolder(log_dir)
     if params.pipeline["type"] == "one_split":
