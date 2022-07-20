@@ -1,21 +1,24 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import pytorch_lightning as pl
 
 from torch_geometric.nn import GCNConv, GlobalAttention
 
 from typing import Sequence
 
 
-class GATNet(nn.Module):
+class GATNet(pl.LightningModule):
     def __init__(
         self,
         num_classes: int = 2,
         dims: Sequence = (128, 128, 64, 128),
         output_intermediate: bool = False,
+        lr: float = 0.01,
     ):
         assert len(dims) == 4
 
-        super(GATNet, self).__init__()
+        super().__init__()
 
         # GCNConv basically averages over the node attributes of a node's neighbors,
         # weighting by edge weights (if given), and including the node itself in the
@@ -35,6 +38,8 @@ class GATNet(nn.Module):
         self.pool = GlobalAttention(gate_nn=self.gate_nn)
 
         self.output_intermediate = output_intermediate
+
+        self.lr = lr
 
     def forward(self, data):
         data.edge_attr = data.edge_attr.squeeze()
@@ -66,3 +71,65 @@ class GATNet(nn.Module):
             return y, x1, x2
         else:
             return y
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+
+        lr_lambda = lambda epoch: 1.0 if epoch < 30 else 0.5 if epoch < 60 else 0.1
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+        return [optimizer], [scheduler]
+
+    def step(self, batch, kind: str) -> dict:
+        # run the model and calculate loss
+        y_hat = self(batch)
+
+        loss = F.nll_loss(y_hat, batch.y)
+
+        # assess accuracy
+        pred = y_hat.max(1)[1]
+        correct = pred.eq(batch.y).sum().item()
+
+        total = len(batch)
+
+        # things to log
+        log = {f"{kind}_loss": loss}
+
+        batch_dict = {
+            "loss": loss,
+            "log": log,
+            # correct and total will be used at epoch end
+            "correct": correct,
+            "total": total,
+        }
+        return batch_dict
+
+    def epoch_end(self, outputs, kind: str) -> dict:
+        # calculate average loss and average accuracy
+        avg_loss = torch.stack([_["loss"] for _ in outputs]).mean()
+
+        correct = sum(_["correct"] for _ in outputs)
+        total = sum(_["total"] for _ in outputs)
+        avg_acc = correct / total
+
+        # log
+        self.log(f"{kind}_avg_loss", avg_loss)
+        self.log(f"{kind}_avg_accuracy", avg_acc)
+
+    def training_step(self, batch, batch_idx) -> dict:
+        return self.step(batch, "train")
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def training_epoch_end(self, outputs) -> dict:
+        self.epoch_end(outputs, "train")
+
+    def validation_epoch_end(self, outputs) -> dict:
+        self.epoch_end(outputs, "val")
+
+    def test_epoch_end(self, outputs) -> dict:
+        self.epoch_end(outputs, "test")
