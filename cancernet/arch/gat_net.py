@@ -13,7 +13,6 @@ class GATNet(pl.LightningModule):
         self,
         num_classes: int = 2,
         dims: Sequence = (128, 128, 64, 128),
-        output_intermediate: bool = False,
         lr: float = 0.01,
     ):
         assert len(dims) == 4
@@ -36,8 +35,6 @@ class GATNet(pl.LightningModule):
             nn.Linear(dims[2], 32), nn.ReLU(), nn.Linear(32, 1)
         )
         self.pool = GlobalAttention(gate_nn=self.gate_nn)
-
-        self.output_intermediate = output_intermediate
 
         self.lr = lr
 
@@ -67,10 +64,7 @@ class GATNet(pl.LightningModule):
         y = self.m(x)
 
         # if asked to, return some intermediate results
-        if self.output_intermediate:
-            return y, x1, x2
-        else:
-            return y
+        return y
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)

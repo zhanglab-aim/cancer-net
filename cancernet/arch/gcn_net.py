@@ -8,7 +8,7 @@ from typing import Sequence
 
 class GCNNet(nn.Module):
     """A network based on graph convolutional operators.
-    
+
     This applies a couple of graph convolutional operators followed by an MLP. Graph
     convolutional operators basically average over the node attributes from a given node
     plus its neighboring nodes, with weights proportional to edge weights and inversely
@@ -19,10 +19,6 @@ class GCNNet(nn.Module):
     The result from the graph convolutional layers is passed through an MLP, with class
     predictions obtained by (log) softmax.
 
-    :param output_intermediate: if true, the module outputs not only the final class
-        prediction, but also:
-            `x1`: the result after the graph convolutional layers, passed through a ReLU
-            `x2`: the result from the global mean pooling (before dropout)
     :param num_classes: number of output classes
     :param dims: dimensions of the input layers (`dims[0]`) and the various three hidden
         layers; should have length 4
@@ -32,7 +28,6 @@ class GCNNet(nn.Module):
         self,
         num_classes: int = 2,
         dims: Sequence = (128, 128, 64, 128),
-        output_intermediate: bool = False,
     ):
         assert len(dims) == 4
 
@@ -49,8 +44,6 @@ class GCNNet(nn.Module):
         self.fc1 = nn.Linear(dims[2], dims[3])
         self.fc2 = nn.Linear(dims[3], num_classes)
         self.m = nn.LogSoftmax(dim=1)
-
-        self.output_intermediate = output_intermediate
 
     def forward(self, data):
         data.edge_attr = data.edge_attr.squeeze()
@@ -77,7 +70,4 @@ class GCNNet(nn.Module):
         y = self.m(x)
 
         # if asked to, return some intermediate results
-        if self.output_intermediate:
-            return y, x1, x2
-        else:
-            return y
+        return y

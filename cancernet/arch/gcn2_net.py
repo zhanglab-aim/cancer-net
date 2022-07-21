@@ -7,7 +7,7 @@ from torch_geometric.nn import GCN2Conv, PairNorm, global_max_pool, global_mean_
 
 class GCN2Net(nn.Module):
     """A much larger network based on extended graph convolutional operators.
-    
+
     This uses a dropout followed by a fully-connected layer with ReLU to blow up the
     input node attributes to `hidden_channels`-dimensions, then passes the resulting
     graph through a series of graph convolutional operators with initial residual
@@ -33,10 +33,6 @@ class GCN2Net(nn.Module):
     :param shared_weights: whether to use different weight matrices for the convolution
         result and the initial residual; see `torch_geometric.nn.GCN2Conv`
     :param dropout: dropout strength
-    :param output_intermediate: if true, the module outputs not only the final class
-        prediction, but also:
-            `x1`: the result after the graph convolutional layers
-            `x2`: the result from the global pooling
     """
 
     def __init__(
@@ -49,7 +45,6 @@ class GCN2Net(nn.Module):
         num_classes: int = 2,
         shared_weights: bool = True,
         dropout: float = 0.0,
-        output_intermediate: bool = False,
     ):
         super(GCN2Net, self).__init__()
 
@@ -97,7 +92,6 @@ class GCN2Net(nn.Module):
         # batch normalization
         self.bn = nn.BatchNorm1d(hidden_channels // 2)
         self.m = nn.LogSoftmax(dim=1)
-        self.output_intermediate = output_intermediate
 
     def forward(self, data):
         # XXX what is the point of doing ToSparseTensor transform in the pre-processing?
@@ -133,7 +127,4 @@ class GCN2Net(nn.Module):
         y = self.m(x)
 
         # if asked to, return intermediate results
-        if self.output_intermediate == True:
-            return y, x1, x2
-        else:
-            return y
+        return y
