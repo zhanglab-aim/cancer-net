@@ -98,7 +98,7 @@ class GATNet(pl.LightningModule):
         }
         return batch_dict
 
-    def epoch_end(self, outputs, kind: str) -> dict:
+    def epoch_end(self, outputs, kind: str):
         # calculate average loss and average accuracy
         avg_loss = torch.stack([_["loss"] for _ in outputs]).mean()
 
@@ -119,11 +119,11 @@ class GATNet(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
 
-    def training_epoch_end(self, outputs) -> dict:
+    def training_epoch_end(self, outputs):
         self.epoch_end(outputs, "train")
 
-    def validation_epoch_end(self, outputs) -> dict:
+    def validation_epoch_end(self, outputs):
         self.epoch_end(outputs, "val")
 
-    def test_epoch_end(self, outputs) -> dict:
+    def test_epoch_end(self, outputs):
         self.epoch_end(outputs, "test")
