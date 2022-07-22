@@ -86,12 +86,8 @@ class GATNet(pl.LightningModule):
 
         total = len(batch)
 
-        # things to log
-        log = {f"{kind}_loss": loss}
-
         batch_dict = {
             "loss": loss,
-            "log": log,
             # correct and total will be used at epoch end
             "correct": correct,
             "total": total,
@@ -107,8 +103,8 @@ class GATNet(pl.LightningModule):
         avg_acc = correct / total
 
         # log
-        self.log(f"{kind}_avg_loss", avg_loss)
-        self.log(f"{kind}_avg_accuracy", avg_acc)
+        self.log(f"{kind}_loss", avg_loss)
+        self.log(f"{kind}_accuracy", avg_acc)
 
     def training_step(self, batch, batch_idx) -> dict:
         return self.step(batch, "train")
