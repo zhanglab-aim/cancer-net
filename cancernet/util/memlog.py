@@ -2,6 +2,7 @@
 learning.
 """
 
+import os
 import torch
 
 from pytorch_lightning.loggers.base import LightningLoggerBase, rank_zero_experiment
@@ -54,6 +55,7 @@ class InMemoryLogger(LightningLoggerBase):
     :param name: experiment name
     :param version: experiment version
     :param prefix: string to put at the beginning of metric keys
+    :param save_dir: save directory (for checkpoints)
     :param df_aggregate_by_step: if true, the metrics dataframe is aggregated by step,
         with repeated non-NA entries averaged over
     :param hparams: access recorded hyperparameters
@@ -66,15 +68,17 @@ class InMemoryLogger(LightningLoggerBase):
 
     def __init__(
         self,
-        name: str = "in_memory",
-        version: int = 1,
+        name: str = "lightning_logs",
+        version: Union[int, str, None] = None,
         prefix: str = "",
+        save_dir: str = "",
         df_aggregate_by_step: bool = True,
     ):
         super().__init__()
         self._name = name
         self._version = version
         self._prefix = prefix
+        self._save_dir = save_dir
         self._metrics_df = None
 
         self.df_aggregate_by_step = df_aggregate_by_step
@@ -126,9 +130,40 @@ class InMemoryLogger(LightningLoggerBase):
         return self._name
 
     @property
-    def version(self) -> int:
-        """Experiment version. Not used by this lgoger."""
+    def version(self) -> Union[int, str]:
+        """Experiment version. Only used for checkpoints."""
+        if self._version is None:
+            self._version = self._get_next_version()
         return self._version
+
+    @property
+    def root_dir(self) -> str:
+        """Parent directory for all checkpoint subdirectories.
+
+        If the experiment name parameter is an empty string, no experiment subdirectory
+        is used and the checkpoint will be saved in `save_dir/version`.
+        """
+        return os.path.join(self.save_dir, self.name)
+
+    @property
+    def log_dir(self) -> str:
+        """The log directory for this run.
+
+        By default, it is named `'version_${self.version}'` but it can be overridden by
+        passing a string value for the constructor's version parameter instead of `None`
+        or an int.
+        """
+        # create a pseudo standard path
+        version = (
+            self.version if isinstance(self.version, str) else f"version_{self.version}"
+        )
+        log_dir = os.path.join(self.root_dir, version)
+        return log_dir
+
+    @property
+    def save_dir(self) -> str:
+        """The current directory where checkpoints are saved."""
+        return self._save_dir
 
     @property
     def hparams(self) -> Dict[str, Any]:
@@ -156,3 +191,19 @@ class InMemoryLogger(LightningLoggerBase):
         `self.save()` or `self.finalize()`.
         """
         return self._metrics_df
+
+    def _get_next_version(self) -> int:
+        root_dir = self.root_dir
+
+        if not os.path.isdir(root_dir):
+            return 0
+
+        existing_versions = []
+        for d in os.listdir(root_dir):
+            if os.path.isdir(os.path.join(root_dir, d)) and d.startswith("version_"):
+                existing_versions.append(int(d.split("_")[1]))
+
+        if len(existing_versions) == 0:
+            return 0
+
+        return max(existing_versions) + 1
