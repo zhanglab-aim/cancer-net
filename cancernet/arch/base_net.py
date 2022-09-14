@@ -14,8 +14,8 @@ class BaseNet(pl.LightningModule):
 
     def __init__(self, lr: float = 0.01):
         super().__init__()
-
         self.lr = lr
+        self.save_hyperparameters()
 
     def configure_optimizers(self) -> Tuple[List, List]:
         """Set up optimizers and schedulers.

@@ -1,12 +1,15 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from torch_geometric.nn import GCNConv, global_mean_pool
 
-from typing import Sequence
+from typing import Sequence, Tuple, List
+from .base_net import BaseNet
+import pytorch_lightning as pl
 
 
-class GCNNet(nn.Module):
+class GCNNet(BaseNet):
     """A network based on graph convolutional operators.
 
     This applies a couple of graph convolutional operators followed by an MLP. Graph
