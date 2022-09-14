@@ -29,3 +29,4 @@ dependencies:
   - jupyter>=1.0
   - setuptools>=59.5
   - pip>=22.1
+  - jupyter
