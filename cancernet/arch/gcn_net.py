@@ -31,7 +31,7 @@ class GCNNet(nn.Module):
     ):
         assert len(dims) == 4
 
-        super(GCNNet, self).__init__()
+        super().__init__()
 
         # GCNConv basically averages over the node attributes of a node's neighbors,
         # weighting by edge weights (if given), and including the node itself in the

@@ -46,7 +46,7 @@ class GCN2Net(nn.Module):
         shared_weights: bool = True,
         dropout: float = 0.0,
     ):
-        super(GCN2Net, self).__init__()
+        super().__init__()
 
         # ModuleList makes PyTorch aware of the parameters for each module in the list
         self.lins = nn.ModuleList()

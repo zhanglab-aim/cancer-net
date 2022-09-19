@@ -18,7 +18,7 @@ class Net(torch.nn.Module):
     """
 
     def __init__(self, dim: int = 128):
-        super(Net, self).__init__()
+        super().__init__()
 
         # NNConv uses an MLP to convert dim1-dimensional input node attributes into
         # dim2-dimensional output node attributes (here dim1=dim, dim2=64) then adds a
