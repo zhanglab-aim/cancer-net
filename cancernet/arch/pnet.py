@@ -53,7 +53,7 @@ class SparseLayer(torch.nn.Module):
         return x
 
 
-class pnet(BaseNet):
+class PNet(BaseNet):
     """Implementation of the pnet sparse feedforward network in torch. Uses the same
     pytorch geometric dataset as the message passing networks.
     """
