@@ -2,11 +2,10 @@ import torch
 import numpy as np
 import pandas as pd
 
-from cancernet.arch import BaseNet
 from cancernet.util import scatter_nd
 
 
-class VisibleDense(BaseNet):
+class VisibleDense(torch.nn.Module):
     def __init__(self, pathway_map, activation=None, use_bias=True, lr: float = 0.001):
         super().__init__(lr=lr)
         # import gene pathway map

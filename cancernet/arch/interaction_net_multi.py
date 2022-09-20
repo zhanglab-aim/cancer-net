@@ -10,7 +10,7 @@ from torch_geometric.utils import subgraph
 
 from cancernet.arch.base_net import BaseNet
 from cancernet.util import scatter_nd
-from typing import Tuple, List
+from types import SimpleNamespace
 
 
 class EdgeModel(torch.nn.Module):
@@ -167,7 +167,13 @@ class InteractionNetworkMulti(BaseNet):
                 )
             )
 
-    def forward(self, x, edge_index, edge_attr, u, batch):
+    def forward(self, data):
+        x, edge_index, edge_attr, batch = (
+            data.x,
+            data.edge_index,
+            data.edge_attr,
+            data.batch,
+        )
         for aa in range(self.layers):
             x, edge_attr, u = self.graphs[aa](x, edge_index, edge_attr, None, batch)
 
@@ -197,23 +203,28 @@ class InteractionSubSystem(BaseNet):
             layers=model_config.get("layers"), hidden=model_config.get("hidden")
         )
 
-    def forward(self, x, edge_index, edge_attr, batch):
+    def forward(self, data):
+        # def forward(self, x, edge_index, edge_attr, batch):
         if self.node_subset is not None:
-            bs = int(batch.max()) + 1
-            assert batch.shape[0] == bs * self.max_nodes
+            bs = int(data.batch.max()) + 1
+            assert data.batch.shape[0] == bs * self.max_nodes
             batch_subset = np.concatenate(
                 [self.node_subset + self.max_nodes * i for i in range(bs)], axis=0
             ).tolist()
             edge_index, edge_attr = subgraph(
                 subset=batch_subset,
-                edge_index=edge_index,
-                edge_attr=edge_attr,
+                edge_index=data.edge_index,
+                edge_attr=data.edge_attr,
                 relabel_nodes=True,
             )
-            x = x[batch_subset]
-            batch = batch[batch_subset]
+            x = data.x[batch_subset]
+            batch = data.batch[batch_subset]
 
-        u = self.interactionnetwork(x, edge_index, edge_attr, None, batch)
+        u = self.interactionnetwork(
+            SimpleNamespace(
+                x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch
+            )
+        )
         if self.activation_fn is not None:
             u = self.activation_fn(u)
         return u

@@ -80,12 +80,14 @@ class PNet(BaseNet):
         # final layer
         self.network.append(Linear(layer_map.to_numpy().shape[1], 2))
 
-    def forward(self, x, edge_index, edge_attr, batch):
+    def forward(self, data):
         """Only uses the "node features", which in this case we just treat as a data
         vector for the sparse feedforward network.
         """
         # reshape for batching appropriate for feedfoward network
-        x = torch.reshape(x, (int(batch[-1] + 1), self.num_genes, self.num_features))
+        x = torch.reshape(
+            data.x, (int(data.batch[-1] + 1), self.num_genes, self.num_features)
+        )
         for hidden_layer in self.network:
             x = hidden_layer(x)
         return F.log_softmax(x, dim=-1)

@@ -5,8 +5,10 @@ import torch.nn.functional as F
 from torch_geometric.nn import NNConv, TopKPooling
 from torch_geometric.nn import global_mean_pool, global_max_pool
 
+from cancernet.arch.base_net import BaseNet
 
-class Net(torch.nn.Module):
+
+class Net(BaseNet):
     """A neural net based on edge-conditioned convolutions.
     
     This uses two edge-conditioned convolutions (`torch_geometric.nn.NNConv`), each
@@ -15,10 +17,11 @@ class Net(torch.nn.Module):
     ultimately performs binary classification.
 
     :param dim: dimensionality of input node attributes
+    :param lr: learning rate
     """
 
-    def __init__(self, dim: int = 128):
-        super().__init__()
+    def __init__(self, dim: int = 128, lr: float = 0.01):
+        super().__init__(lr=lr)
 
         # NNConv uses an MLP to convert dim1-dimensional input node attributes into
         # dim2-dimensional output node attributes (here dim1=dim, dim2=64) then adds a

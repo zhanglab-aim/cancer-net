@@ -5,8 +5,10 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 
 from typing import Sequence
 
+from cancernet.arch.base_net import BaseNet
 
-class GCNNet(nn.Module):
+
+class GCNNet(BaseNet):
     """A network based on graph convolutional operators.
 
     This applies a couple of graph convolutional operators followed by an MLP. Graph
@@ -22,16 +24,18 @@ class GCNNet(nn.Module):
     :param num_classes: number of output classes
     :param dims: dimensions of the input layers (`dims[0]`) and the various three hidden
         layers; should have length 4
+    :param lr: learning rate
     """
 
     def __init__(
         self,
         num_classes: int = 2,
         dims: Sequence = (128, 128, 64, 128),
+        lr: float = 0.01,
     ):
         assert len(dims) == 4
 
-        super().__init__()
+        super().__init__(lr=lr)
 
         # GCNConv basically averages over the node attributes of a node's neighbors,
         # weighting by edge weights (if given), and including the node itself in the
@@ -46,14 +50,14 @@ class GCNNet(nn.Module):
         self.m = nn.LogSoftmax(dim=1)
 
     def forward(self, data):
-        data.edge_attr = data.edge_attr.squeeze()
+        edge_attr = data.edge_attr.squeeze()
 
         # dimension stays 128
-        x = F.relu(self.prop1(data.x, data.edge_index, data.edge_attr))
+        x = F.relu(self.prop1(data.x, data.edge_index, edge_attr))
         # x = F.dropout(x, p=0.5, training=self.training)
 
         # dimension goes down to 64
-        x1 = F.relu(self.prop2(x, data.edge_index, data.edge_attr))
+        x1 = F.relu(self.prop2(x, data.edge_index, edge_attr))
         # x1 = F.dropout(x1, p=0.5, training=self.training)
 
         # global pooling leads us into non-graph neural net territory

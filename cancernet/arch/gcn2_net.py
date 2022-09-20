@@ -4,8 +4,10 @@ import torch.nn.functional as F
 
 from torch_geometric.nn import GCN2Conv, PairNorm, global_max_pool, global_mean_pool
 
+from cancernet.arch.base_net import BaseNet
 
-class GCN2Net(nn.Module):
+
+class GCN2Net(BaseNet):
     """A much larger network based on extended graph convolutional operators.
 
     This uses a dropout followed by a fully-connected layer with ReLU to blow up the
@@ -33,6 +35,7 @@ class GCN2Net(nn.Module):
     :param shared_weights: whether to use different weight matrices for the convolution
         result and the initial residual; see `torch_geometric.nn.GCN2Conv`
     :param dropout: dropout strength
+    :param lr: learning rate
     """
 
     def __init__(
@@ -45,8 +48,9 @@ class GCN2Net(nn.Module):
         num_classes: int = 2,
         shared_weights: bool = True,
         dropout: float = 0.0,
+        lr: float = 0.01,
     ):
-        super().__init__()
+        super().__init__(lr=lr)
 
         # ModuleList makes PyTorch aware of the parameters for each module in the list
         self.lins = nn.ModuleList()

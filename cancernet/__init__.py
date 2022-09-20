@@ -1,1 +1,1 @@
-from .dataset import PnetDataSet
+from .dataset import PnetDataSet, ReactomeNetwork

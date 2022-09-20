@@ -2,8 +2,11 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Sequential, Linear, ReLU
 
+from typing import List, Tuple
+
 from cancernet.arch import BaseNet
-from cancernet.arch import InteractionSubSystem, VisibleDense
+from cancernet.arch.interaction_net_multi import InteractionSubSystem
+from cancernet.arch.visible_dense import VisibleDense
 
 
 class VisibleGraphInteractionNet(BaseNet):
@@ -66,7 +69,25 @@ class VisibleGraphInteractionNet(BaseNet):
 
         return pathway_to_nodes
 
-    def forward(self, x, edge_index, edge_attr, batch):
-        h = torch.cat([g(x, edge_index, edge_attr, batch) for g in self.subsys], dim=-1)
+    def forward(self, data):
+        h = torch.cat([g(data) for g in self.subsys], dim=-1)
         out = self.nn(h)
         return F.log_softmax(out, dim=-1)
+
+    def configure_optimizers(self) -> Tuple[List, List]:
+        """Set up optimizers and schedulers.
+
+        This adds a simple scheduler.
+        """
+        optimizer_list, _ = super().configure_optimizers()
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer_list[0], "min", factor=0.5, patience=3
+        )
+
+        return {
+            "optimizer": optimizer_list[0],
+            "lr_scheduler": scheduler,
+            "monitor": "val_loss",
+            "frequency": 1,
+        }
