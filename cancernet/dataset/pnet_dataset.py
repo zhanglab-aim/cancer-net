@@ -19,16 +19,9 @@ from torch_geometric.data import InMemoryDataset, Data
 from torch_geometric.utils import remove_self_loops
 from torch_sparse import coalesce
 
-# for Reactome pathways
-import networkx as nx
-import itertools
-import re
-
 
 cached_data = {}  # all data read will be referenced here
 
-
-### Pytorch geometric Dataset ###
 
 class PnetDataSet(InMemoryDataset):
     def __init__(
@@ -49,7 +42,7 @@ class PnetDataSet(InMemoryDataset):
         self.edge_tol = edge_tol
         self.name = name
         self._files = files or {}
-        super(PnetDataSet, self).__init__(root, transform, pre_transform)
+        super().__init__(root, transform, pre_transform)
 
         # load the processed dataset
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -405,7 +398,7 @@ def load_data(filename, response=None, selected_genes=None):
         intersect = set.intersection(set(genes), selected_genes)
         if len(intersect) < len(selected_genes):
             # raise Exception('wrong gene')
-            logging.warning("some genes dont exist in the original data set")
+            logging.warning("some genes don't exist in the original data set")
         x = x.loc[:, intersect]
         genes = intersect
     logging.info(
@@ -465,7 +458,7 @@ def combine(
         df = df.fillna(0)
         df_list.append(df)
 
-    all_data = pd.concat(df_list, keys=data_type_list, join="inner", axis=1,)
+    all_data = pd.concat(df_list, keys=data_type_list, join="inner", axis=1)
 
     # put genes on the first level and then the data type
     all_data = all_data.swaplevel(i=0, j=1, axis=1)
@@ -488,279 +481,3 @@ def combine(
     )
 
     return all_data, x, y, rows, cols
-
-
-### For Reactome Pathways ###
-
-def add_edges(G, node, n_levels):
-    edges = []
-    source = node
-    for l in range(n_levels):
-        target = node + '_copy' + str(l + 1)
-        edge = (source, target)
-        source = target
-        edges.append(edge)
-
-    G.add_edges_from(edges)
-    return G
-
-
-def complete_network(G, n_leveles=4):
-    sub_graph = nx.ego_graph(G, 'root', radius=n_leveles)
-    terminal_nodes = [n for n, d in sub_graph.out_degree() if d == 0]
-    #distances = [len(nx.shortest_path(G, source='root', target=node)) for node in terminal_nodes]
-    for node in terminal_nodes:
-        distance = len(nx.shortest_path(sub_graph, source='root', target=node))
-        if distance <= n_leveles:
-            diff = n_leveles - distance + 1
-            sub_graph = add_edges(sub_graph, node, diff)
-
-    return sub_graph
-
-
-def get_nodes_at_level(net, distance):
-    # get all nodes within distance around the query node
-    nodes = set(nx.ego_graph(net, 'root', radius=distance))
-
-    # remove nodes that are not **at** the specified distance but closer
-    if distance >= 1.:
-        nodes -= set(nx.ego_graph(net, 'root', radius=distance - 1))
-
-    return list(nodes)
-
-
-def get_layers_from_net(net, n_levels):
-    layers = []
-    for i in range(n_levels):
-        nodes = get_nodes_at_level(net, i)
-        dict = {}
-        for n in nodes:
-            n_name = re.sub('_copy.*', '', n)
-            next = net.successors(n)
-            dict[n_name] = [re.sub('_copy.*', '', nex) for nex in next]
-        layers.append(dict)
-    return layers
-
-
-class Reactome():
-
-    def __init__(self, reactome_base_dir, relations_file_name, pathway_names_fn, pathway_genes_fn):
-        self.reactome_base_dir =  reactome_base_dir
-        self.relations_file_name = relations_file_name
-        self.pathway_names_fn = pathway_names_fn
-        self.pathway_genes_fn = pathway_genes_fn
-        self.pathway_names = self.load_names()
-        self.hierarchy = self.load_hierarchy()
-        self.pathway_genes = self.load_genes()
-
-    def load_names(self):
-        filename = os.path.join(self.reactome_base_dir, self.pathway_names_fn)
-        df = pd.read_csv(filename, sep='\t')
-        df.columns = ['reactome_id', 'pathway_name', 'species']
-        return df
-
-    def load_genes(self):
-        filename = os.path.join(self.reactome_base_dir, self.pathway_genes_fn)
-        gmt = GMT()
-        df = gmt.load_data(filename, pathway_col=1, genes_col=3)
-        return df
-
-    def load_hierarchy(self):
-        filename = os.path.join(self.reactome_base_dir, self.relations_file_name)
-        df = pd.read_csv(filename, sep='\t')
-        df.columns = ['child', 'parent']
-        return df
-
-
-class ReactomeNetwork():
-
-    def __init__(self, reactome_kws):
-        self.reactome = Reactome(**reactome_kws)  # low level access to reactome pathways and genes
-        self.netx = self.get_reactome_networkx()
-
-    def get_terminals(self):
-        terminal_nodes = [n for n, d in self.netx.out_degree() if d == 0]
-        return terminal_nodes
-
-    def get_roots(self):
-
-        roots = get_nodes_at_level(self.netx, distance=1)
-        return roots
-
-    # get a DiGraph representation of the Reactome hierarchy
-    def get_reactome_networkx(self):
-        if hasattr(self, 'netx'):
-            return self.netx
-        hierarchy = self.reactome.hierarchy
-        # filter hierarchy to have human pathways only
-        human_hierarchy = hierarchy[hierarchy['child'].str.contains('HSA')]
-        net = nx.from_pandas_edgelist(human_hierarchy, 'child', 'parent', create_using=nx.DiGraph())
-        net.name = 'reactome'
-
-        # add root node
-        roots = [n for n, d in net.in_degree() if d == 0]
-        root_node = 'root'
-        edges = [(root_node, n) for n in roots]
-        net.add_edges_from(edges)
-
-        return net
-
-    def info(self):
-        return nx.info(self.netx)
-
-    def get_tree(self):
-
-        # convert to tree
-        G = nx.bfs_tree(self.netx, 'root')
-
-        return G
-
-    def get_completed_network(self, n_levels):
-        G = complete_network(self.netx, n_leveles=n_levels)
-        return G
-
-    def get_completed_tree(self, n_levels):
-        G = self.get_tree()
-        G = complete_network(G, n_leveles=n_levels)
-        return G
-
-    def get_layers(self, n_levels, direction='root_to_leaf'):
-        if direction == 'root_to_leaf':
-            net = self.get_completed_network(n_levels)
-            layers = get_layers_from_net(net, n_levels)
-        else:
-            net = self.get_completed_network(5)
-            layers = get_layers_from_net(net, 5)
-            layers = layers[5 - n_levels:5]
-
-        # get the last layer (genes level)
-        terminal_nodes = [n for n, d in net.out_degree() if d == 0]  # set of terminal pathways
-        # we need to find genes belonging to these pathways
-        genes_df = self.reactome.pathway_genes
-
-        dict = {}
-        missing_pathways = []
-        for p in terminal_nodes:
-            pathway_name = re.sub('_copy.*', '', p)
-            genes = genes_df[genes_df['group'] == pathway_name]['gene'].unique()
-            if len(genes) == 0:
-                missing_pathways.append(pathway_name)
-            dict[pathway_name] = genes
-
-        layers.append(dict)
-        return layers
-
-
-# data_dir = os.path.dirname(__file__)
-class GMT():
-    # genes_cols : start reading genes from genes_col(default 1, it can be 2 e.g. if an information col is added after the pathway col)
-    # pathway col is considered to be the first column (0)
-    def load_data(self, filename, genes_col=1, pathway_col=0):
-
-        data_dict_list = []
-        with open(filename) as gmt:
-
-            data_list = gmt.readlines()
-
-            # print data_list[0]
-            for row in data_list:
-                genes = row.strip().split('\t')
-                genes = [re.sub('_copy.*', '', g) for g in genes]
-                genes = [re.sub('\\n.*', '', g) for g in genes]
-                for gene in genes[genes_col:]:
-                    pathway = genes[pathway_col]
-                    dict = {'group': pathway, 'gene': gene}
-                    data_dict_list.append(dict)
-
-        df = pd.DataFrame(data_dict_list)
-        # print df.head()
-
-        return df
-
-    def load_data_dict(self, filename):
-
-        data_dict_list = []
-        dict = {}
-        with open(os.path.join(data_dir, filename)) as gmt:
-            data_list = gmt.readlines()
-
-            # print data_list[0]
-            for row in data_list:
-                genes = row.split('\t')
-                dict[genes[0]] = genes[2:]
-
-        return dict
-
-    def write_dict_to_file(self, dict, filename):
-        lines = []
-        with open(filename, 'w') as gmt:
-            for k in dict:
-                str1 = '	'.join(str(e) for e in dict[k])
-                line = str(k) + '	' + str1 + '\n'
-                lines.append(line)
-            gmt.writelines(lines)
-        return
-
-    def __init__(self):
-
-        return
-
-
-### Biology Pathway layer to map ###
-
-def get_layer_maps(reactome, genes, n_levels, direction, add_unk_genes, verbose=False):
-    reactome_layers = reactome.get_layers(n_levels, direction)
-    filtering_index = genes
-    maps = []
-    for i, layer in enumerate(reactome_layers[::-1]):
-        if verbose: print('layer #', i)
-        mapp = get_map_from_layer(layer)
-        filter_df = pd.DataFrame(index=filtering_index)
-        if verbose: print('filtered_map', filter_df.shape)
-        filtered_map = filter_df.merge(mapp, right_index=True, left_index=True, how='left')
-        # filtered_map = filter_df.merge(mapp, right_index=True, left_index=True, how='inner')
-        if verbose: print('filtered_map', filter_df.shape)
-        # filtered_map = filter_df.merge(mapp, right_index=True, left_index=True, how='inner')
-
-        # UNK, add a node for genes without known reactome annotation
-        if add_unk_genes:
-            if verbose: print('UNK ')
-            filtered_map['UNK'] = 0
-            ind = filtered_map.sum(axis=1) == 0
-            filtered_map.loc[ind, 'UNK'] = 1
-        ####
-
-        filtered_map = filtered_map.fillna(0)
-        if verbose: print('filtered_map', filter_df.shape)
-        # filtering_index = list(filtered_map.columns)
-        filtering_index = filtered_map.columns
-        if verbose:
-            logging.info('layer {} , # of edges  {}'.format(i, filtered_map.sum().sum()))
-        maps.append(filtered_map)
-    return maps
-
-
-def get_map_from_layer(layer_dict):
-    pathways = list(layer_dict.keys())
-    print('pathways', len(pathways))
-    genes = list(itertools.chain.from_iterable(list(layer_dict.values())))
-    genes = list(np.unique(genes))
-    print('genes', len(genes))
-
-    n_pathways = len(pathways)
-    n_genes = len(genes)
-
-    mat = np.zeros((n_pathways, n_genes))
-    for p, gs in list(layer_dict.items()):
-        g_inds = [genes.index(g) for g in gs]
-        p_ind = pathways.index(p)
-        mat[p_ind, g_inds] = 1
-
-    df = pd.DataFrame(mat, index=pathways, columns=genes)
-    # for k, v in layer_dict.items():
-    #     print k, v
-    #     df.loc[k,v] = 1
-    # df= df.fillna(0)
-    return df.T
-
-
