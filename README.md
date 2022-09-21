@@ -7,7 +7,7 @@
 ### Conda
 Start by setting up the environment: switch to the repo folder and run
 
-``` conda env create -f cancerenv1.yml ```
+``` conda env create -f environment.yml ```
 
 Of course, you should first install Conda from [here](https://docs.conda.io/en/latest/miniconda.html).
 Choose `yes` for running `conda init`. You can disable automatically activating the
