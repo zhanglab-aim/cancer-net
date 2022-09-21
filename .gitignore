@@ -1,5 +1,7 @@
 *.pyc
 *.h5
-_*
 venv
 graph/
+*.egg-info
+cancernet/pnet/_database
+.vscode

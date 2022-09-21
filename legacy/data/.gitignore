@@ -1,0 +1,5 @@
+/processed
+/raw
+processed*/
+*.gz
+*.pkl

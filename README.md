@@ -5,42 +5,26 @@
 ## Installation
 
 ### Conda
-Installation should work out of the box for Conda:
+Start by setting up the environment: switch to the repo folder and run
 
-``` conda env create -f cancerenv1.yml -n cancerenv ```
+``` conda env create -f cancerenv1.yml ```
 
 Of course, you should first install Conda from [here](https://docs.conda.io/en/latest/miniconda.html).
 Choose `yes` for running `conda init`. You can disable automatically activating the
 base Conda environment by running `conda config --set auto_activate_base false`. This is
 useful if you work with both `conda` and `venv` environments on the same machine.
 
-### Venv
-For now support is spotty for `venv` installation. You can start with
+Next install the package using
 
-``` pip install -r requirements.txt ```
+``` pip install . ```
 
-This sometimes fails for some packages, which can then be installed manually. Running
-the `pip install -r requirements.txt` command again should then fix things.
+For development, make an editable install:
 
-If having trouble with `pyg`, try the instructions [here](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html).
-
+``` pip install -e . ```
 
 ## Running
 
-Ensure that the proper data is placed in subfolders of `data`. The `samples.txt` in each
-of the three existing subfolders, `brain`, `kidney`, and `lung`, indicate which files
-from the TCGA dataset are used. In addition to the TCGA raw files, each `data` subfolder
-needs to contain a gene graph called `gene_graph.gz`.
-
-Training and testing can be achieved using `03-main.py`. To run
-
-``` python 03-main.py ```
-
-Use
-
-``` python 03-main.py --help ```
-
-for options.
+Find notebooks in the [demos](demos/) folder.
 
 ## Outline
 
@@ -54,16 +38,14 @@ neural networks to extract 128-dim features for each gene. Specifically, we used
 
 ### Generating pre-processed gene graph -- this is subject to change
 
-Run `01-network_id_conversion.py` to convert HumanBase to TCGA gene identifiers. Then
-run `02-trasfer_hb_graph.py` to read the graph, symmetrize edges (the original data
-contains edges in one direction only), and store as a Python pickle.
+Run `01-network_id_conversion.py` to convert HumanBase to TCGA gene identifiers.
 
 ### References
 [1] Predicting mRNA Abundance Directly from Genomic Sequence Using Deep Convolutional Neural Networks, Agarwal et al. 2020, Cell Reports
 
 [2] Unified rational protein engineering with sequence-only deep representation learning, Alley et al. 2019. Nature Methods
 
-## Graph Neural Network (GNNs) for graph classification
+## Graph Neural Network (GNNs) for graph classification (outdated)
 We have implemented two kinds of GNNs: one is vanilla GNN (GCN [3]) and another one is a
 more advanced GNN (GCNII[4]).
 
