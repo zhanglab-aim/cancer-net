@@ -23,5 +23,5 @@ def scatter_nd(
 
     # generate the flat output, then reshape
     res = weights.new_zeros(n)
-    res.scatter_add_(0, ind1d, weights).reshape(*shape)
+    res = res.scatter_add_(0, ind1d, weights).reshape(*shape)
     return res
