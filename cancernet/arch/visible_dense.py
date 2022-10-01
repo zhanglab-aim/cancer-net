@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 
 from cancernet.util import scatter_nd
+from .base_net import BaseNet
 
-
-class VisibleDense(torch.nn.Module):
+class VisibleDense(BaseNet):
     def __init__(self, pathway_map, activation=None, use_bias=True, lr: float = 0.001):
         super().__init__(lr=lr)
         # import gene pathway map
@@ -39,14 +39,14 @@ class VisibleDense(torch.nn.Module):
 
     def forward(self, x):
         # XXX should get rid of calls to "to"
-        device = self.kernel_vector.device
         self.kernel = scatter_nd(
             self.nonzero_ind, self.kernel_vector, shape=(self.input_dim, self.units)
         )
         # multiply input vector with the sparse matrix
-        out = torch.matmul(x, self.kernel.to(device))
+        out = torch.matmul(x, self.kernel)
         if self.use_bias:
             out = out + self.bias
         if self.activation_fn is not None:
             out = self.activation_fn(out)
         return out
+
