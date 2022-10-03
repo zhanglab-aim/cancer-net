@@ -15,21 +15,23 @@ class FeatureLayer(torch.nn.Module):
     for each gene.
     """
 
-    def __init__(self, num_genes: int, num_features: int):
+    def __init__(self, num_genes: int, num_features: int, hidden: int=1):
         super().__init__()
         self.num_genes = num_genes
         self.num_features = num_features
-        weights = torch.Tensor(self.num_genes, self.num_features)
+        self.hidden = hidden
+        weights = torch.Tensor(self.num_genes, self.num_features, hidden)
         self.weights = nn.Parameter(weights)
-        self.bias = nn.Parameter(torch.Tensor(self.num_genes))
+        self.bias = nn.Parameter(torch.Tensor(self.num_genes, hidden))
         # initialise weights using a normal distribution; can also try uniform
         torch.nn.init.normal_(self.weights, mean=0.0, std=1.0)
-        torch.nn.init.normal_(self.bias, mean=0.0, std=1.0)
+        torch.nn.init.normal_(self.bias, mean=0.0, std=0.1)
 
     def forward(self, x):
-        x = x * self.weights
-        x = torch.sum(x, dim=2)
+        x = torch.unsqueeze(x, -1) * self.weights
+        x = torch.sum(x, dim=-2)
         x = x + self.bias
+        x = x.squeeze(dim=-1)
         return x
 
 
@@ -42,14 +44,18 @@ class SparseLayer(torch.nn.Module):
         self.register_buffer(
             "nonzero_indices", torch.LongTensor(np.array(np.nonzero(map_numpy)).T)
         )
+        self.layer_map = layer_map
         self.shape = map_numpy.shape
         self.weights = nn.Parameter(torch.Tensor(self.nonzero_indices.shape[0]))
+        self.bias = nn.Parameter(torch.Tensor(self.shape[1]))
         torch.nn.init.normal_(self.weights, mean=0.0, std=1.0)
+        torch.nn.init.normal_(self.bias, mean=0.0, std=0.1)
 
     def forward(self, x):
         sparse_tensor = scatter_nd(self.nonzero_indices, self.weights, self.shape)
         x = torch.mm(x, sparse_tensor)
         # no bias yet
+        x = x + self.bias
         return x
 
 
@@ -73,10 +79,12 @@ class PNet(BaseNet):
         self.num_features = num_features
         self.network = nn.ModuleList()
         self.network.append(FeatureLayer(self.num_genes, self.num_features))
-        self.network.append(ReLU())
+        self.network.append(nn.Tanh())
+        self.network.append(nn.Dropout(p=0.5))
         for layer_map in layers:
             self.network.append(SparseLayer(layer_map))
-            self.network.append(ReLU())
+            self.network.append(nn.Tanh())
+            self.network.append(nn.Dropout(p=0.1))
         # final layer
         self.network.append(Linear(layer_map.to_numpy().shape[1], 2))
 
