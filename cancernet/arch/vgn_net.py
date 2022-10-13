@@ -86,7 +86,7 @@ class VgnNet(BaseNet):
         bs = data.batch[-1] + 1
         x = torch.reshape(x, (bs, self.num_nodes, -1))
         x = torch.mean(x, dim=-1)
-        x = nn.Dropout(p=0.3)(x)
+        x = nn.Dropout(p=0.1)(x)
         x = self.pnet_layers(x)
         y = F.log_softmax(x, dim=-1)
         return y

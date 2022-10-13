@@ -464,7 +464,8 @@ def combine(
     all_data = all_data.swaplevel(i=0, j=1, axis=1)
 
     # order the columns based on genes
-    order = all_data.columns.levels[0]
+    # NOTE: sort this for reproducibility; FZZ 2022.10.12
+    order = sorted(all_data.columns.levels[0])
     all_data = all_data.reindex(columns=order, level=0)
 
     x = all_data.values

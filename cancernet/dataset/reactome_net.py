@@ -117,12 +117,13 @@ def get_layer_maps(
     genes,
     n_levels: int,
     direction: str,
-    add_unk_genes: bool,
+    add_unk_genes: bool = False,
     verbose: bool = False,
 ) -> List[pd.DataFrame]:
     """XXX What does this do exactly?"""
     reactome_layers = reactome.get_layers(n_levels, direction)
-    filtering_index = genes
+    # add sort for reproducibility; FZZ 2022.10.12
+    filtering_index = sorted(genes)
     maps = []
     for i, layer in enumerate(reactome_layers[::-1]):
         if verbose:
@@ -156,6 +157,9 @@ def get_layer_maps(
             logging.info(
                 "layer {} , # of edges  {}".format(i, filtered_map.sum().sum())
             )
+        # sort rows and cols for reproducibility; FZZ 2020.10.12
+        filtered_map = filtered_map[sorted(filtered_map.columns)]
+        filtered_map = filtered_map.loc[sorted(filtered_map.index)]
         maps.append(filtered_map)
     return maps
 
@@ -165,7 +169,8 @@ def get_map_from_layer(layer_dict: Dict[str, Sequence[str]]) -> pd.DataFrame:
     pathways = list(layer_dict.keys())
     print("pathways", len(pathways))
     genes = list(itertools.chain.from_iterable(list(layer_dict.values())))
-    genes = list(np.unique(genes))
+    # add sort for reproducibility; FZZ 2022.10.12
+    genes = sorted(list(np.unique(genes)))
     print("genes", len(genes))
 
     n_pathways = len(pathways)

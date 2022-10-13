@@ -35,7 +35,8 @@ def get_roc(
 
     outs = np.concatenate(outs)
     ys = np.concatenate(ys)
-
+    if len(outs.shape) > 1:
+        outs = np.hstack([1-outs, outs])
     fpr, tpr, _ = roc_curve(ys, outs[:, 1])
     auc_value = auc(fpr, tpr)
 
