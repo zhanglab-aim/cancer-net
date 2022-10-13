@@ -8,15 +8,17 @@ from typing import Iterable, Tuple
 
 
 def get_roc(
-        model: torch.nn.Module, loader: Iterable, seed: int = 1, exp: bool = True
+    model: torch.nn.Module, loader: Iterable, seed: int = 1, exp: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """Run a model on the a dataset and calculate ROC and AUC.
 
-    The model output values are exponentiated before calculating the ROC. XXX Why?
+    The model output values are by default exponentiated before calculating the ROC.
+    XXX Why?
 
     :param model: model to test
     :param loader: data loader
     :param seed: PyTorch random seed
+    :param exp: if `True`, exponential model outputs before calculating ROC
     :return: a tuple `(fpr, tpr, auc_value, ys, outs)`, where `(fpr, tpr)` are vectors
         representing the ROC curve; `auc_value` is the AUC; `ys` and `outs` are the
         expected (ground-truth) outputs and the (exponentiated) model outputs,
@@ -24,6 +26,9 @@ def get_roc(
     """
     # keep everything reproducible!
     torch.manual_seed(seed)
+
+    # make sure the model is in evaluation mode
+    model.eval()
 
     outs = []
     ys = []
@@ -39,8 +44,8 @@ def get_roc(
 
     outs = np.concatenate(outs)
     ys = np.concatenate(ys)
-    if len(outs.shape) > 1:
-        outs = np.hstack([1-outs, outs])
+    if len(outs.shape) == 1:
+        outs = np.vstack([1 - outs, outs])
     fpr, tpr, _ = roc_curve(ys, outs[:, 1])
     auc_value = auc(fpr, tpr)
 

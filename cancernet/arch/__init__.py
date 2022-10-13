@@ -8,3 +8,4 @@ from .visible_dense import VisibleDense
 from .visible import VisibleGraphInteractionNet
 from .pnet import PNet
 from .interaction_net_multi import InteractionSubSystem, InteractionNetworkMulti
+from .vgn_net import VgnNet
