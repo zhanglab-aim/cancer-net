@@ -1,7 +1,7 @@
 # from data.pathways.pathway_loader import get_pathway_files
 import itertools
 import logging
-
+import os
 import numpy as np
 import pandas as pd
 from tensorflow.keras.layers import Dense, Dropout, Activation, BatchNormalization, multiply
@@ -9,15 +9,19 @@ from tensorflow.keras.regularizers import l2
 from keras.constraints import nonneg
 
 # from data.pathways.pathway_loader import get_pathway_files
-from cancernet.pnet.data.pathways.reactome import ReactomeNetwork
+#from cancernet.pnet.data.pathways.reactome import ReactomeNetwork
+from cancernet import ReactomeNetwork
 from cancernet.pnet.model.layers_custom import Diagonal, SparseTF
+from cancernet.dataset.reactome_net import get_map_from_layer, get_layer_maps
 
-
+# comment out local functions and use the same from cancernet.dataset; FZZ 2022.10.12
+"""
 def get_map_from_layer(layer_dict):
     pathways = list(layer_dict.keys())
     print('pathways', len(pathways))
     genes = list(itertools.chain.from_iterable(list(layer_dict.values())))
-    genes = list(np.unique(genes))
+    # sort genes for reproducibility; FZZ 2022.10.12
+    genes = list(sorted(np.unique(genes))) 
     print('genes', len(genes))
 
     n_pathways = len(pathways)
@@ -39,7 +43,8 @@ def get_map_from_layer(layer_dict):
 
 def get_layer_maps(genes, n_levels, direction, add_unk_genes, verbose=False):
     reactome_layers = ReactomeNetwork().get_layers(n_levels, direction)
-    filtering_index = genes
+    # sort genes for reproducibility; FZZ 2022.10.12
+    filtering_index = sorted(genes)
     maps = []
     for i, layer in enumerate(reactome_layers[::-1]):
         if verbose: print('layer #', i)
@@ -67,7 +72,7 @@ def get_layer_maps(genes, n_levels, direction, add_unk_genes, verbose=False):
             logging.info('layer {} , # of edges  {}'.format(i, filtered_map.sum().sum()))
         maps.append(filtered_map)
     return maps
-
+"""
 
 def shuffle_genes_map(mapp):
     # print mapp[0:10, 0:10]
@@ -177,7 +182,19 @@ def get_pnet(inputs, features, genes, n_hidden_layers, direction, activation, ac
     decision_outcomes.append(decision_outcome)
 
     if n_hidden_layers > 0:
-        maps = get_layer_maps(genes, n_hidden_layers, direction, add_unk_genes)
+        #maps = get_layer_maps(genes, n_hidden_layers, direction, add_unk_genes)
+        # changed
+        try:  # if cancernet.dataset.reactome
+            reactome_kws = dict(
+                reactome_base_dir=os.path.join("data", "reactome"),
+                relations_file_name="ReactomePathwaysRelation.txt",
+                pathway_names_file_name="ReactomePathways.txt",
+                pathway_genes_file_name="ReactomePathways.gmt",
+            )
+            reactome = ReactomeNetwork(reactome_kws)
+        except TypeError: # if pnet.reactome
+            reactome = ReactomeNetwork()
+        maps = get_layer_maps(reactome, genes, n_hidden_layers, direction, add_unk_genes)
         layer_inds = list(range(1, len(maps)))
         # if adaptive_reg:
         #     w_regs = [float(w_reg)/float(i) for i in layer_inds]

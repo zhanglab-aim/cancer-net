@@ -46,7 +46,7 @@ class BaseNet(pl.LightningModule):
         pred = y_hat.max(1)[1]
         correct = pred.eq(batch.y).sum().item()
 
-        total = len(batch)
+        total = len(batch.y)
 
         batch_dict = {
             "loss": loss,
