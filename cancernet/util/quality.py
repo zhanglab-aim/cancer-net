@@ -8,7 +8,7 @@ from typing import Iterable, Tuple
 
 
 def get_roc(
-    model: torch.nn.Module, loader: Iterable, seed: int = 1
+        model: torch.nn.Module, loader: Iterable, seed: int = 1, exp: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """Run a model on the a dataset and calculate ROC and AUC.
 
@@ -30,7 +30,11 @@ def get_roc(
     device = next(iter(model.parameters())).device
     for tb in loader:
         tb = tb.to(device)
-        outs.append(torch.exp(model(tb)).detach().cpu().clone().numpy())
+        if exp:
+            outs.append(torch.exp(model(tb)).detach().cpu().clone().numpy())
+        else:
+            outs.append(model(tb).detach().cpu().clone().numpy())
+
         ys.append(tb.y.detach().cpu().clone().numpy())
 
     outs = np.concatenate(outs)

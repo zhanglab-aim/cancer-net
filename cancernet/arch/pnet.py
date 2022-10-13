@@ -153,7 +153,7 @@ class PNet(BaseNet):
         pred = y_hat>0.5
         correct = pred.eq(batch.y).sum().item()
 
-        total = len(batch)
+        total = len(batch.y)
 
         batch_dict = {
             "loss": loss,
