@@ -22,11 +22,11 @@ class SparsePool(torch.nn.Module):
             "nonzero_indices", torch.LongTensor(np.array(np.nonzero(map_numpy)).T)
         )
         self.shape = map_numpy.shape
-        weights = scatter_nd(self.nonzero_indices, torch.ones(self.nonzero_indices.shape[0]), self.shape)
-        weights /= torch.Tensor([map_numpy.sum(axis=0).tolist()]*self.shape[0])
-        self.register_buffer(
-            "weights", weights
+        weights = scatter_nd(
+            self.nonzero_indices, torch.ones(self.nonzero_indices.shape[0]), self.shape
         )
+        weights /= torch.Tensor([map_numpy.sum(axis=0).tolist()] * self.shape[0])
+        self.register_buffer("weights", weights)
 
     def forward(self, x):
         # first, average the node feature dim from (bs, n_nodes, n_feats) to (bs, n_nodes)
@@ -40,8 +40,7 @@ class VgnNet(BaseNet):
     def __init__(
         self,
         layers,
-        num_classes: int = 2,
-        dims: Sequence = (128, 128, 64, 128),
+        dims: Sequence,
         lr: float = 0.01,
     ):
         super().__init__(lr=lr)
@@ -57,29 +56,27 @@ class VgnNet(BaseNet):
         self.layers = layers
         assert len(self.layers) == 2, NotImplementedError("Only support 2-layer map")
         self.num_nodes = self.layers[0].shape[0]
-        self.pnet_layers = [
-            #FeatureLayer(self.num_nodes, dims[2]),
-            #nn.ReLU(),
-            #nn.Dropout(p=0.2)
+        components = [
+            # FeatureLayer(self.num_nodes, dims[2]),
+            # nn.ReLU(),
+            # nn.Dropout(p=0.2)
             SparseLayer(layer_map=self.layers[0]),
             nn.ReLU(),
             nn.Dropout(p=0.1),
             SparseLayer(layer_map=self.layers[1]),
             nn.ReLU(),
             nn.Dropout(p=0.1),
+            # final layer
+            nn.Linear(self.layers[1].shape[1], 2),
         ]
-        # final layer
-        self.pnet_layers.append(nn.Linear(self.layers[1].to_numpy().shape[1], 2))
-        self.pnet_layers = nn.Sequential(*self.pnet_layers)
+        self.pnet_layers = nn.Sequential(*components)
 
     def forward(self, data):
         data.edge_attr = data.edge_attr.squeeze()
 
-        # dimension stays 128
         x = F.relu(self.prop1(data.x, data.edge_index, data.edge_attr))
         x = F.dropout(x, p=0.1, training=self.training)
 
-        # dimension goes down to 64
         x = F.relu(self.prop2(x, data.edge_index, data.edge_attr))
         x = F.dropout(x, p=0.1, training=self.training)
 
@@ -104,4 +101,3 @@ class VgnNet(BaseNet):
         )
 
         return optimizer_list, [scheduler]
-   

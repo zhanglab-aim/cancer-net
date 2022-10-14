@@ -65,12 +65,18 @@ class BaseNet(pl.LightningModule):
         This function is used to implement the training, validation, and test epoch-end
         functions.
         """
-        # calculate average loss and average accuracy
-        avg_loss = torch.stack([_["loss"] for _ in outputs]).mean()
+        with torch.no_grad():
+            # calculate average loss and average accuracy
+            losses = torch.stack([_["loss"] for _ in outputs])
+            totals = torch.tensor([_["total"] for _ in outputs], device=losses.device)
 
-        correct = sum(_["correct"] for _ in outputs)
-        total = sum(_["total"] for _ in outputs)
-        avg_acc = correct / total
+            loss_sum = (totals * losses).sum()
+            total = totals.sum()
+            avg_loss = loss_sum / total
+
+            correct = sum(_["correct"] for _ in outputs)
+            total = sum(_["total"] for _ in outputs)
+            avg_acc = correct / total
 
         # log
         self.log(f"{kind}_loss", avg_loss)

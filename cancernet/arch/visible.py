@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Sequential, Linear, ReLU
 
-from typing import List, Tuple
+from typing import Dict, Any
 
 from cancernet.arch import BaseNet
 from cancernet.arch.interaction_net_multi import InteractionSubSystem
@@ -74,7 +74,7 @@ class VisibleGraphInteractionNet(BaseNet):
         out = self.nn(h)
         return F.log_softmax(out, dim=-1)
 
-    def configure_optimizers(self) -> Tuple[List, List]:
+    def configure_optimizers(self) -> Dict[str, Any]:
         """Set up optimizers and schedulers.
 
         This adds a simple scheduler.
