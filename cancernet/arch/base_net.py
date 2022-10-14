@@ -67,15 +67,11 @@ class BaseNet(pl.LightningModule):
         """
         with torch.no_grad():
             # calculate average loss and average accuracy
-            losses = torch.stack([_["loss"] for _ in outputs])
-            totals = torch.tensor([_["total"] for _ in outputs], device=losses.device)
-
-            loss_sum = (totals * losses).sum()
-            total = totals.sum()
-            avg_loss = loss_sum / total
+            total_loss = sum(_["loss"] * _["total"] for _ in outputs)
+            total = sum(_["total"] for _ in outputs)
+            avg_loss = total_loss / total
 
             correct = sum(_["correct"] for _ in outputs)
-            total = sum(_["total"] for _ in outputs)
             avg_acc = correct / total
 
         # log
