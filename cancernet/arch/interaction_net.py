@@ -8,7 +8,7 @@ from torch_scatter import scatter_mean
 from torch_geometric.nn import MetaLayer
 
 from cancernet.arch.base_net import BaseNet
-from typing import Tuple, List
+from typing import Dict, Any
 
 
 inputs = 3
@@ -79,7 +79,7 @@ class InteractionNet(BaseNet):
         )
         return F.log_softmax(u, dim=-1)
 
-    def configure_optimizers(self) -> Tuple[List, List]:
+    def configure_optimizers(self) -> Dict[str, Any]:
         """Set up optimizers and schedulers.
 
         This adds a simple scheduler.
