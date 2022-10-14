@@ -40,6 +40,7 @@ class VisibleGraphInteractionNet(BaseNet):
                     model_config=self.model_config,
                     node_subset=self.pathway_to_nodes[target_pathway],
                     max_nodes=len(self.node_index),
+                    lr=lr,
                 )
                 for target_pathway in self.pathway_maps[0].columns
             ]
