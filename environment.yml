@@ -28,4 +28,5 @@ dependencies:
   - seaborn>=0.11
   - jupyter>=1.0
   - setuptools>=59.5
+  - watermark>=2.3
   - pip>=22.1
