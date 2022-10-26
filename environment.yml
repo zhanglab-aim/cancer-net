@@ -7,19 +7,21 @@ channels:
   - defaults
 dependencies:
   - black>=22.6
-  - python>=3.9
-  - cudatoolkit>=11.3
-  - pytorch>=1.11
+  - python=3.9
+  - cudatoolkit=11.6
+  - pytorch>=1.12.1
   - torchvision>=0.12
   - torchaudio>=0.11
   - pytorch-lightning>=1.6
+  - tensorflow
+  - networkx>=2.8
   - pyg>=2.0
   - pysr>=0.9
   - mygene>=3.2
   - numpy>=1.23
   - scipy>=1.8
   - tqdm>=4.64
-  - pandas>=1.4
+  - pandas=1.4.1
   - scikit-learn>=1.1
   - h5py>=3.7
   - wandb>=0.12
