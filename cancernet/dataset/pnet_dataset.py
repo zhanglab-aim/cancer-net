@@ -260,9 +260,10 @@ def data_reader(filename_dict):
     for data_type, filename in fd.items():
         x, y, info, genes = load_data(filename=filename, selected_genes=selected_genes)
         x = processor(x, data_type)
-        x_list.append(x), y_list.append(y), rows_list.append(info), cols_list.append(
-            genes
-        )
+        x_list.append(x)
+        y_list.append(y)
+        rows_list.append(info)
+        cols_list.append(genes)
         data_type_list.append(data_type)
     res = combine(
         x_list,
@@ -395,7 +396,7 @@ def load_data(filename, response=None, selected_genes=None):
     genes = all.columns
 
     if not selected_genes is None:
-        intersect = set.intersection(set(genes), selected_genes)
+        intersect = list(set.intersection(set(genes), selected_genes))
         if len(intersect) < len(selected_genes):
             # raise Exception('wrong gene')
             logging.warning("some genes don't exist in the original data set")
