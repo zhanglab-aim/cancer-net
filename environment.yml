@@ -8,7 +8,7 @@ channels:
 dependencies:
   - black>=22.6
   - python>=3.9
-  - cudatoolkit>=11.3
+  - cudatoolkit=11.6
   - pytorch>=1.11
   - torchvision>=0.12
   - torchaudio>=0.11
