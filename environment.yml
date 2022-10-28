@@ -25,7 +25,6 @@ dependencies:
   - scikit-learn>=1.1
   - h5py>=3.7
   - wandb>=0.12
-  - optuna>=2.10
   - matplotlib>=3.5
   - seaborn>=0.11
   - jupyter>=1.0
