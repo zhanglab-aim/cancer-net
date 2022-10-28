@@ -17,6 +17,7 @@ dependencies:
   - pysr>=0.9
   - mygene>=3.2
   - numpy>=1.23
+  - tensorflow>=2.10
   - networkx>=2.8
   - scipy>=1.8
   - tqdm>=4.64
