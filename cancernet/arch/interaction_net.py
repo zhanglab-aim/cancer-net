@@ -12,12 +12,12 @@ from typing import Dict, Any
 
 
 inputs = 3
-hidden = 128
+#hidden = 128
 outputs = 2
 
 
 class EdgeModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,hidden):
         super().__init__()
         self.edge_mlp = Sequential(
             Linear(inputs * 2, hidden),
@@ -32,7 +32,7 @@ class EdgeModel(torch.nn.Module):
 
 
 class NodeModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,hidden):
         super().__init__()
         self.node_mlp_1 = Sequential(
             Linear(inputs + hidden, hidden),
@@ -57,7 +57,7 @@ class NodeModel(torch.nn.Module):
 
 
 class GlobalModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,hidden):
         super().__init__()
         self.global_mlp = Sequential(
             Linear(hidden, hidden), BatchNorm1d(hidden), ReLU(), Linear(hidden, outputs)
@@ -69,9 +69,9 @@ class GlobalModel(torch.nn.Module):
 
 
 class InteractionNet(BaseNet):
-    def __init__(self, lr: float = 0.01):
+    def __init__(self, lr: float = 0.01, hidden: float = 128):
         super().__init__(lr=lr)
-        self.meta_layer = MetaLayer(EdgeModel(), NodeModel(), GlobalModel())
+        self.meta_layer = MetaLayer(EdgeModel(hidden), NodeModel(hidden), GlobalModel(hidden))
 
     def forward(self, data):
         x, edge_attr, u = self.meta_layer(
