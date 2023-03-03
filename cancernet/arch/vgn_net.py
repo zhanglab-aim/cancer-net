@@ -80,8 +80,13 @@ class VgnNet(BaseNet):
         x = F.relu(self.prop2(x, data.edge_index, data.edge_attr))
         x = F.dropout(x, p=0.1, training=self.training)
 
-        bs = data.batch[-1] + 1
-        x = torch.reshape(x, (bs, self.num_nodes, -1))
+        if data.batch is not None:
+            ## Work with batched calls
+            bs = data.batch[-1] + 1
+            x = torch.reshape(x, (bs, self.num_nodes, -1))
+        else:
+            ## Work with single data sample calls
+            x=data.x.unsqueeze(0)
         x = torch.mean(x, dim=-1)
         x = nn.Dropout(p=0.1)(x)
         x = self.pnet_layers(x)
