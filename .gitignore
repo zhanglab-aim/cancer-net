@@ -6,3 +6,4 @@ graph/
 cancernet/pnet/_database
 .vscode
 *.ckpt
+lightning_logs

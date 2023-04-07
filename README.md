@@ -14,13 +14,20 @@ Choose `yes` for running `conda init`. You can disable automatically activating 
 base Conda environment by running `conda config --set auto_activate_base false`. This is
 useful if you work with both `conda` and `venv` environments on the same machine.
 
-Next install the package using
+Next activate the environment and install the package using
 
-``` pip install . ```
+``` 
+conda activate cancerenv
+pip install .
+```
 
 For development, make an editable install:
 
-``` pip install -e . ```
+``` 
+conda activate cancerenv
+pip install -e .
+```
+
 
 ## Running
 

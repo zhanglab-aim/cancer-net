@@ -30,4 +30,6 @@ dependencies:
   - jupyter>=1.0
   - setuptools>=59.5
   - watermark>=2.3
+  - pydot
+  - graphviz
   - pip>=22.1

@@ -260,7 +260,7 @@ def combine(
 
     df_list = []
     for x, y, r, c in zip(x_list, y_list, rows_list, cols_list):
-        df = pd.DataFrame(x, columns=c, index=r)
+        df = pd.DataFrame(x, columns=list(c), index=r)
         df = df.T.join(all_cols_df, how="right")
         df = df.T
         df = df.fillna(0)
@@ -329,7 +329,6 @@ class ProstateDataPaper:
         selected_samples=None,
         training_split=0,
     ):
-
         self.training_split = training_split
         if not selected_genes is None:
             if type(selected_genes) == list:
@@ -376,7 +375,6 @@ class ProstateDataPaper:
             )
 
         if drop_AR:
-
             data_types = x.columns.levels[1].unique()
             ind = True
             if "cnv" in data_types:
@@ -387,9 +385,7 @@ class ProstateDataPaper:
             if "mut_important" in data_types:
                 ind2 = x[("AR", "mut_important")] < 1.0
                 ind = ind & ind2
-            x = x.loc[
-                ind,
-            ]
+            x = x.loc[ind,]
             y = y[ind]
             rows = rows[ind]
 
@@ -413,9 +409,7 @@ class ProstateDataPaper:
             ind = np.sort(np.concatenate([pos_ind, neg_ind]))
 
             y = y[ind]
-            x = x[
-                ind,
-            ]
+            x = x[ind,]
             rows = rows[ind]
 
         if shuffle:
