@@ -7,5 +7,5 @@ from .interaction_net import InteractionNet
 from .visible_dense import VisibleDense
 from .visible import VisibleGraphInteractionNet
 from .pnet import PNet
-from .interaction_net_multi import InteractionSubSystem, InteractionNetworkMulti
+from .interaction_net import InteractionSubSystem
 from .vgn_net import VgnNet

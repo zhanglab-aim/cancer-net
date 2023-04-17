@@ -80,6 +80,8 @@ class PNet(BaseNet):
         self.intermediate_outs = nn.ModuleList()
         self.network.append(nn.Sequential(FeatureLayer(self.num_genes, self.num_features),nn.Tanh()))
         self.loss_weights=[2, 7, 20, 54, 148, 400] ## Taken from pnet - final output layer is the last element
+        if len(self.layers) > 5:
+            self.loss_weights = [2]*(len(self.layers)-5) + self.loss_weights
         for i, layer_map in enumerate(layers):
             if i != (len(layers) - 1):
                 if i==0:
@@ -110,19 +112,14 @@ class PNet(BaseNet):
         )
         y = []
         
-        ## First element in list is the final layer output
-        ## second element comes from the penultimate layer
-        ## and so on
+        ## update hidden states x while record the intermediate 
+        ## layer outcome predictions y
         x=self.network[0](x)
         for aa in range(1,len(self.network)-1):
             y.append(self.intermediate_outs[aa-1](x))
             x=self.network[aa](x)
         y.append(self.network[-1](x))
         
-        ## Reverse list to begin with intermediate outputs
-        ## to align with self.loss_weights
-        #x.reverse()
-        #print(x)
         return y
     
     def step(self, batch, kind: str) -> dict:
