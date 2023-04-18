@@ -5,7 +5,7 @@ from torch.nn import Sequential, Linear, ReLU
 from typing import Dict, Any
 
 from cancernet.arch import BaseNet
-from cancernet.arch.interaction_net_multi import InteractionSubSystem
+from cancernet.arch.interaction_net import InteractionSubSystem
 from cancernet.arch.visible_dense import VisibleDense
 
 
