@@ -143,16 +143,13 @@ class PNet(BaseNet):
         # run the model and calculate loss
         y_hat = self(batch)
 
-        if kind == "train":
-            loss = 0
-            for aa, y in enumerate(y_hat):
-                ## Here we take a weighted average of the preditive outputs. Intermediate layers first
-                loss += self.loss_weights[aa] * self.criterion(
-                    y.squeeze(), batch.y.to(torch.float32)
-                )
-            loss /= np.sum(self.loss_weights[aa])
-        else:
-            loss = self.criterion(y_hat[-1].squeeze(), batch.y.to(torch.float32))
+        loss = 0
+        for aa, y in enumerate(y_hat):
+            ## Here we take a weighted average of the preditive outputs. Intermediate layers first
+            loss += self.loss_weights[aa] * self.criterion(
+                y.squeeze(), batch.y.to(torch.float32)
+            )
+        loss /= np.sum(self.loss_weights[aa])
 
         correct = ((y_hat[-1] > 0.5).flatten() == batch.y).sum()
         # assess accuracy
