@@ -15,6 +15,9 @@ def get_roc(
     The model output values are by default exponentiated before calculating the ROC.
     XXX Why?
 
+    When the model outputs a list of values instead of a tensor, the last element in the
+    sequence is used by this function.
+
     :param model: model to test
     :param loader: data loader
     :param seed: PyTorch random seed
@@ -35,12 +38,19 @@ def get_roc(
     device = next(iter(model.parameters())).device
     for tb in loader:
         tb = tb.to(device)
-        if exp:
-            outs.append(torch.exp(model(tb)).detach().cpu().clone().numpy())
-        else:
-            outs.append(model(tb).detach().cpu().clone().numpy())
+        output = model(tb)
 
-        ys.append(tb.y.detach().cpu().clone().numpy())
+        # handle multiple outputs
+        if not torch.is_tensor(output):
+            assert hasattr(output, "__getitem__")
+            output = output[-1]
+
+        output = output.detach().cpu().numpy()
+        if exp:
+            output = np.exp(output)
+        outs.append(output)
+
+        ys.append(tb.y.detach().cpu().numpy())
 
     outs = np.concatenate(outs)
     ys = np.concatenate(ys)
