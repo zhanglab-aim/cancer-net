@@ -80,7 +80,7 @@ class PNet(BaseNet):
         :param lr: learning rate
         """
         super().__init__(lr=lr)
-        self.criterion = nn.BCELoss()
+        self.criterion = nn.BCELoss(reduction="sum")
         self.layers = layers
         self.num_genes = num_genes
         self.num_features = num_features
@@ -90,7 +90,7 @@ class PNet(BaseNet):
         self.network.append(
             nn.Sequential(FeatureLayer(self.num_genes, self.num_features), nn.Tanh())
         )
-        ## Taken from pnet - final output layer is the last element
+        ## Taken from pnet
         self.loss_weights = [2, 7, 20, 54, 148, 400]
         if len(self.layers) > 5:
             self.loss_weights = [2] * (len(self.layers) - 5) + self.loss_weights
@@ -126,10 +126,10 @@ class PNet(BaseNet):
         x = torch.reshape(
             data.x, (int(data.batch[-1] + 1), self.num_genes, self.num_features)
         )
-        y = []
 
         ## update hidden states x while record the intermediate
         ## layer outcome predictions y
+        y = []
         x = self.network[0](x)
         for aa in range(1, len(self.network) - 1):
             y.append(self.intermediate_outs[aa - 1](x))
