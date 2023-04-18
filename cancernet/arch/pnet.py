@@ -23,8 +23,8 @@ class FeatureLayer(torch.nn.Module):
         self.weights = nn.Parameter(weights)
         self.bias = nn.Parameter(torch.Tensor(self.num_genes))
         # initialise weights using a normal distribution; can also try uniform
-        torch.nn.init.normal_(self.weights, mean=0.0, std=1.0)
-        torch.nn.init.normal_(self.bias, mean=0.0, std=0.1)
+        torch.nn.init.xavier_uniform_(self.weights)
+        torch.nn.init.zeros_(self.bias)
 
     def forward(self, x):
         x = x * self.weights
@@ -44,13 +44,15 @@ class SparseLayer(torch.nn.Module):
         )
         self.layer_map = layer_map
         self.shape = map_numpy.shape
-        self.weights = nn.Parameter(torch.Tensor(self.nonzero_indices.shape[0]))
+        self.weights = nn.Parameter(torch.Tensor(self.nonzero_indices.shape[0], 1))
         self.bias = nn.Parameter(torch.Tensor(self.shape[1]))
-        torch.nn.init.normal_(self.weights, mean=0.0, std=1.0)
-        torch.nn.init.normal_(self.bias, mean=0.0, std=0.1)
+        torch.nn.init.xavier_uniform_(self.weights)
+        torch.nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        sparse_tensor = scatter_nd(self.nonzero_indices, self.weights, self.shape)
+        sparse_tensor = scatter_nd(
+            self.nonzero_indices, self.weights.squeeze(), self.shape
+        )
         x = torch.mm(x, sparse_tensor)
         # no bias yet
         x = x + self.bias
@@ -88,8 +90,10 @@ class PNet(BaseNet):
         self.network.append(
             nn.Sequential(FeatureLayer(self.num_genes, self.num_features), nn.Tanh())
         )
-        ## Weights taken from pnet - final output layer is the last element
+        ## Taken from pnet - final output layer is the last element
         self.loss_weights = [2, 7, 20, 54, 148, 400]
+        if len(self.layers) > 5:
+            self.loss_weights = [2] * (len(self.layers) - 5) + self.loss_weights
         for i, layer_map in enumerate(layers):
             if i != (len(layers) - 1):
                 if i == 0:
@@ -119,49 +123,39 @@ class PNet(BaseNet):
         """
         ## Create list for each component of the loss:
         # reshape for batching appropriate for feedfoward network
-        x = [
-            torch.reshape(
-                data.x, (int(data.batch[-1] + 1), self.num_genes, self.num_features)
-            )
-        ]
+        x = torch.reshape(
+            data.x, (int(data.batch[-1] + 1), self.num_genes, self.num_features)
+        )
+        y = []
 
-        ## First element in list is the final layer output
-        ## second element comes from the penultimate layer
-        ## and so on
-        x[0] = self.network[0](x[0])
+        ## update hidden states x while record the intermediate
+        ## layer outcome predictions y
+        x = self.network[0](x)
         for aa in range(1, len(self.network) - 1):
-            x.append(self.intermediate_outs[aa - 1](x[0]))
-            x[0] = self.network[aa](x[0])
-        x[0] = self.network[-1](x[0])
+            y.append(self.intermediate_outs[aa - 1](x))
+            x = self.network[aa](x)
+        y.append(self.network[-1](x))
 
-        ## Reverse list to begin with intermediate outputs
-        ## to align with self.loss_weights
-        x.reverse()
-
-        ## Get weighted average of intermediate and final outputs during training
-        if self.intermediate_outputs and self.training:
-            avg_pred = 0
-            for aa, loss_weight in enumerate(self.loss_weights[: len(self.layers)]):
-                avg_pred += x[aa] * loss_weight
-            avg_pred /= sum(self.loss_weights[: len(self.layers)])
-            return avg_pred.squeeze()
-        else:
-            return x[-1].squeeze()
+        return y
 
     def step(self, batch, kind: str) -> dict:
-        """Generic step function that runs the network on a batch and outputs loss
-        and accuracy information that will be aggregated at epoch end.
-        This function is used to implement the training, validation, and test steps.
-        """
+        """Step function executed by lightning trainer module."""
         # run the model and calculate loss
         y_hat = self(batch)
 
-        loss = self.criterion(y_hat, batch.y.to(torch.float32))
+        if kind == "train":
+            loss = 0
+            for aa, y in enumerate(y_hat):
+                ## Here we take a weighted average of the preditive outputs. Intermediate layers first
+                loss += self.loss_weights[aa] * self.criterion(
+                    y.squeeze(), batch.y.to(torch.float32)
+                )
+            loss /= np.sum(self.loss_weights[aa])
+        else:
+            loss = self.criterion(y_hat[-1].squeeze(), batch.y.to(torch.float32))
 
+        correct = ((y_hat[-1] > 0.5).flatten() == batch.y).sum()
         # assess accuracy
-        # pred = y_hat.max(1)[1]
-        correct = ((y_hat > 0.5).flatten() == batch.y).sum()
-
         total = len(batch.y)
         batch_dict = {
             "loss": loss,
