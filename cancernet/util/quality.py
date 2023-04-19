@@ -4,11 +4,11 @@ import torch
 import numpy as np
 
 from sklearn.metrics import roc_curve, auc
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional
 
 
 def get_roc(
-    model: torch.nn.Module, loader: Iterable, seed: int = 1, exp: bool = True
+    model: torch.nn.Module, loader: Iterable, seed: Optional[int] = 1, exp: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """Run a model on the a dataset and calculate ROC and AUC.
 
@@ -20,15 +20,16 @@ def get_roc(
 
     :param model: model to test
     :param loader: data loader
-    :param seed: PyTorch random seed
+    :param seed: PyTorch random seed; set to `None` to avoid setting the seed
     :param exp: if `True`, exponential model outputs before calculating ROC
     :return: a tuple `(fpr, tpr, auc_value, ys, outs)`, where `(fpr, tpr)` are vectors
         representing the ROC curve; `auc_value` is the AUC; `ys` and `outs` are the
         expected (ground-truth) outputs and the (exponentiated) model outputs,
         respectively
     """
-    # keep everything reproducible!
-    torch.manual_seed(seed)
+    if seed is not None:
+        # keep everything reproducible!
+        torch.manual_seed(seed)
 
     # make sure the model is in evaluation mode
     model.eval()
