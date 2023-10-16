@@ -2,9 +2,8 @@ import mygene
 import gzip
 import sys
 
-#network_fp = "graph/global.gz"
-network_fp = sys.argv[1]
-out_fp = sys.argv[2]
+network_fp = "data/prostate/prostate_gland.gz"
+out_fp = "data/prostate/prostate_gland.geneSymbol.gz"
 print(f"converting {network_fp} to {out_fp}")
 
 entrez_network = {}
@@ -38,7 +37,6 @@ print(
     % (len(entrez_network), len(symbol_network))
 )
 
-#with gzip.GzipFile("graph/global.geneSymbol.gz", "w") as fo:
 with gzip.GzipFile(out_fp, "w") as fo:
     for g1, g2 in symbol_network:
         fo.write(("%s\t%s\t%s\n" % (g1, g2, symbol_network[(g1, g2)])).encode("utf-8"))
