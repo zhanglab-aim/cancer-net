@@ -83,7 +83,7 @@ class GATNet(BaseNet):
         return optimizer_list, [scheduler]
 
 
-class GATNew(BaseNet):
+class GATNet(BaseNet):
     """ Network based on Graph Attention Networks https://arxiv.org/abs/1710.10903 
         Similar to a GCN, but each graph convolution consists of a self attention step.
 
