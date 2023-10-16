@@ -29,23 +29,16 @@ pip install -e .
 ```
 
 
+## Data acquisition
+NB the data files involved are ~20GB. If you want to store these outside the repo, we suggest setting `cancer-net/data` as a symlink to elsewhere on your system where you would like to store the data. Then proceed with the following steps:
+1. Run `bash pull_data.sh` to download data files.
+2. Preprocess the HumanBase graph connections by running `python3 01-network_id_conversion.py` inside the conda environment. This converts the HumanBase genes to TCGA gene identifiers.
+
+
 ## Running
 
 Find notebooks in the [demos](demos/) folder.
 
-## Outline
-
-![pipeline](figures/cancer_gnn_pipeline.png?raw=true)
-
-We treat the genomic data of each sample as a graph, where each gene stands for a node,
-gene-gene interactions are defined as edges and taken from [HumanBase](https://hb.flatironinstitute.org/).
-Each gene (node) is associated with node features. In this project,  we used pretained
-neural networks to extract 128-dim features for each gene. Specifically, we used Xpresso
-[1] to encode the non-coding regions; we used UniRep [2] to encode the coding regions. 
-
-### Generating pre-processed gene graph -- this is subject to change
-
-Run `01-network_id_conversion.py` to convert HumanBase to TCGA gene identifiers.
 
 ### References
 [1] Predicting mRNA Abundance Directly from Genomic Sequence Using Deep Convolutional Neural Networks, Agarwal et al. 2020, Cell Reports
