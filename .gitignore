@@ -3,7 +3,6 @@
 venv
 graph/
 *.egg-info
-cancernet/pnet/_database
 .vscode
 *.ckpt
 lightning_logs

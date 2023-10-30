@@ -32,8 +32,8 @@ class PnetDataSet(InMemoryDataset):
         files: Optional[dict] = None,
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
-        valid_ratio: float = 0.15,
-        test_ratio: float = 0.25,
+        valid_ratio: float = 0.102,
+        test_ratio: float = 0.102,
         valid_seed: int = 0,
         test_seed: int = 7357,
     ):

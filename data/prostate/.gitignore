@@ -1,2 +1,8 @@
 *
 !.gitignore
+!P1000_data_CNA_paper.csv
+!P1000_final_analysis_set_cross_important_only.csv
+!node_index.pkl
+!protein-coding_gene_with_coordinate_minimal.txt
+!response_paper.csv
+!tcga_prostate_expressed_genes_and_cancer_genes.csv
