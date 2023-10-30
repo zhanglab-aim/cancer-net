@@ -35,8 +35,8 @@ pip install -e .
 ## Data acquisition
 NB the data files involved are ~20GB. If you want to store these outside the repo, we suggest setting `cancer-net/data` as a symlink to elsewhere on your system where you would like to store the data. Then proceed with the following steps:
 1. Run `bash pull_data.sh` to download data files.
-2. Preprocess the HumanBase graph connections by running `python3 01-network_id_conversion.py` inside the conda environment. This converts the HumanBase genes to TCGA gene identifiers.
-3. The first time you create a `PnetDataSet`, the code will use these TCGA identifiers to construct a graph with connections between genes meeting a certain connection threshold (we have set `0.5` in our results). This can take ~20 minutes to construct, and so this graph is cached and saved as a pickle object. Next time a `PnetDataSet` is intialised, it will load the cached graph if it can find one, instead of reconstructing the graph every time.
+2. Preprocess the HumanBase graph connections by running `python3 01-network_id_conversion.py` inside the conda environment. This converts the HumanBase genes in entrez ID to HGNC gene symbol identifiers in TCGA.
+3. The first time you create a `PnetDataSet`, the code will use these HGNC gene symbol identifiers to construct a graph with connections between genes meeting a certain connection threshold (we have set `0.5` in our results). This can take ~20 minutes to construct, and so this graph is cached and saved as a pickle object. Next time a `PnetDataSet` is intialised, it will load the cached graph if it can find one, instead of reconstructing the graph every time.
 
 
 ## Running
