@@ -17,9 +17,9 @@ class EdgeModel(torch.nn.Module):
     def __init__(self, node_size: int, edge_attr_size: int, hidden: int):
         """Initialize the edge model.
 
-        :param node_size: TODO fill
-        :param edge_attr_size: TODO fill
-        :param hidden: TODO fill
+        :param node_size: Size of input node features
+        :param edge_attr_size: Size of input edge features
+        :param hidden: Size of MLP, and output edge features
         """
         super().__init__()
         self.edge_mlp = Sequential(
@@ -53,8 +53,8 @@ class NodeModel(torch.nn.Module):
     def __init__(self, input_size: int, hidden: int):
         """Initialize the node model.
 
-        :param input_size: TODO fill
-        :param hidden: TODO fill
+        :param input_size: size of the input layer node features
+        :param hidden: size of the MLP, and output node features
         """
         super().__init__()
         self.message_function = Sequential(
@@ -103,7 +103,19 @@ class NodeModel(torch.nn.Module):
 
 
 class GlobalModel(torch.nn.Module):
+    """ Update global features.
+
+    The MetaLayer architecture allows for the graph to have an additional set of features, disconnected
+    from any individual edge or node, which can be considered a property of the entire graph, called
+    'global features'. In practice we only use this as a global pooling step in the final layer.
+
+    """
     def __init__(self, hidden: int, outputs: int):
+        """Initialize global model.
+
+        :param hidden: size of the node features
+        :param outputs: size of output features
+        """
         super().__init__()
         self.global_mlp = Sequential(
             Linear(hidden, hidden), BatchNorm1d(hidden), ReLU(), Linear(hidden, outputs)
@@ -114,7 +126,7 @@ class GlobalModel(torch.nn.Module):
         return self.global_mlp(out)
 
 
-class InteractionNet(BaseNet):
+class MetaLayerNet(BaseNet):
     """Class to stack multiple MetaLayers."""
 
     def __init__(self, layers: int, hidden: int, lr: float = 0.001):
@@ -123,7 +135,7 @@ class InteractionNet(BaseNet):
         The general procedure for the `MetaLayer` is as follows.
             1. The `EdgeModel` takes the node features and edge features. For each edge
                connection, the node and edge features for each edge are concatenated
-               together and passed to an MLP. The output is then a set of updated node
+               together and passed to an MLP. The output is then a set of updated edge
                features.
             2. The `NodeModel` takes the updated edge features, concatenates them each
                with the  node features of the *sending* node, and passes this tensor to
@@ -173,56 +185,9 @@ class InteractionNet(BaseNet):
             data.batch,
         )
         for aa in range(self.layers):
+            ## The None argument here is where we would pass the global features to be
+            ## updated at each message passing step. But we only use the global model
+            ## to produce an output, u, from the final message passing step
             x, edge_attr, u = self.graphs[aa](x, edge_index, edge_attr, None, batch)
 
         return F.log_softmax(u, dim=-1)
-
-
-class InteractionSubSystem(BaseNet):
-    """Class to build subgraphs based on Pnet biological subprocesses, and pass these
-    subgraphs as input to an `InteractionNetworkMulti`.
-    """
-
-    def __init__(
-        self,
-        model_config,
-        activation=None,
-        node_subset=None,
-        max_nodes=None,
-        lr: float = 0.001,
-    ):
-        super().__init__(lr=lr)
-        # Note: this assumes each graph has the same number of max_nodes
-        # self.node_subset = [n+max_nodes*i for i in range(batch) for n in node_subset]
-        self.node_subset = np.array(node_subset) if node_subset is not None else None
-        self.max_nodes = max_nodes
-        self.activation_fn = activation
-        self.interactionnetwork = InteractionNetworkMulti(
-            layers=model_config.get("layers"), hidden=model_config.get("hidden")
-        )
-
-    def forward(self, data):
-        # def forward(self, x, edge_index, edge_attr, batch):
-        if self.node_subset is not None:
-            bs = int(data.batch.max()) + 1
-            assert data.batch.shape[0] == bs * self.max_nodes
-            batch_subset = np.concatenate(
-                [self.node_subset + self.max_nodes * i for i in range(bs)], axis=0
-            ).tolist()
-            edge_index, edge_attr = subgraph(
-                subset=batch_subset,
-                edge_index=data.edge_index,
-                edge_attr=data.edge_attr,
-                relabel_nodes=True,
-            )
-            x = data.x[batch_subset]
-            batch = data.batch[batch_subset]
-
-        u = self.interactionnetwork(
-            SimpleNamespace(
-                x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch
-            )
-        )
-        if self.activation_fn is not None:
-            u = self.activation_fn(u)
-        return u

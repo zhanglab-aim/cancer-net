@@ -9,7 +9,7 @@ dependencies:
   - python>=3.9
   - cudatoolkit=11.3
   - pytorch>=1.11
-  - pytorch-lightning>=1.6
+  - pytorch-lightning=1.9.4
   - pyg==2.0.4
   - mygene>=3.2
   - numpy>=1.23
