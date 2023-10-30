@@ -2,7 +2,7 @@
 
 Codebase associated with [Reusability report: Prostate cancer stratification with diverse biologically-informed neural architectures](https://arxiv.org/abs/2309.16645). We re-implement the neural network architecture from [Biologically informed deep neural network for prostate cancer discovery](https://www.nature.com/articles/s41586-021-03922-4) in [PyTorch](https://pytorch.org/).
 
-Additionally, we implement 3 different kinds of graph architectures, including a simple (graph convolutional network)[https://arxiv.org/abs/2007.02133], a (graph attention network)[https://arxiv.org/abs/1710.10903] and (MetaLayer)[https://arxiv.org/abs/1806.01261]. Graphs are constructured using gene connectivity patterns from the (HumanBase)[https://hb.flatironinstitute.org/] database.
+Additionally, we implement 3 different kinds of graph architectures, including a simple [graph convolutional network](https://arxiv.org/abs/2007.02133), a [graph attention networ]([https://arxiv.org/abs/1710.10903) and [MetaLayer](https://arxiv.org/abs/1806.01261). Graphs are constructured using gene connectivity patterns from the [HumanBase](https://hb.flatironinstitute.org/) database.
 
 
 ## Installation
