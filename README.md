@@ -41,5 +41,8 @@ NB the data files involved are ~20GB. If you want to store these outside the rep
 
 ## Running
 
-Find example notebooks in the [demos](demos/) folder.
+Example notebooks in [demos](demos/) folder. These notebooks will load a dataset, split into train/validation/test splits, and train a neural network on the data. These notebooks also include calculations of various performance metrics.
+
+## Reusability report
+To produce the results in [Reusability report: Prostate cancer stratification with diverse biologically-informed neural architectures](https://arxiv.org/abs/2309.16645), we used the scripts in [reprod_report](reprod_report/). This folder contains scripts for both the hyperparameter sweeps and initialisation variance tests. We use [Weights and biases](https://wandb.ai/) to monitor model training and performance, so these scripts are reliant on `wandb`. Additionally, model weights and performance metrics are saved locally in the `wandb` save directory.
 
