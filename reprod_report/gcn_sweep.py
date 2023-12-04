@@ -1,19 +1,12 @@
 import time
 import os
 import numpy as np
-
 import torch, torch_geometric.transforms as T, torch.nn.functional as F
 from torch.utils.data.sampler import SubsetRandomSampler
-
 from torch_geometric.loader import DataLoader
-
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.callbacks import ModelCheckpoint
-
 import matplotlib.pyplot as plt
-
 from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
@@ -24,33 +17,30 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-
 import wandb
 import pickle
 
-from cancernet.arch.gcn_net import GCNNet
+from cancernet.arch import GCNNet
 from cancernet.util import ProgressBar, InMemoryLogger, get_roc
 from cancernet import PnetDataSet
 
-project_string='hyperparam_sweeps_May'
+project_string='hyperparam_sweeps'
 
 def train():
-    wandb.init(project=project_string, entity="cancer-net", dir="/scratch/cp3759/cancer-net/wandb_runs/hyperparam_sweeps/GCN_no_early")
+    wandb.init(project=project_string)
     ## Import hyperparameters
-
     graph_dims=wandb.config.graph_dims
     mlp_dims=wandb.config.mlp_dims
     layers=wandb.config.layers
     lr=wandb.config.lr
-
     print("graph dims=",graph_dims)
     print("mlp dims=",mlp_dims)
     print("layers=",layers)
     print("lr=",lr)
-    
     print(wandb.config)
 
-    base_data_string="/scratch/cp3759/cancer-net/cancer_data"
+    ## path to data
+    base_data_string="../data"
 
     dataset = PnetDataSet(
         root=os.path.join(base_data_string, "prostate"),
@@ -201,6 +191,7 @@ def train():
                 "test precision": test_precision,
                 "test recall": test_recall}
 
+    ## Saves results as pickle file in wandb run folder
     with open(wandb.run.dir+'/results_dict.p', 'wb') as handle:
         pickle.dump(results_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
@@ -208,7 +199,7 @@ def train():
 
 sweep_configuration = {
     'method': 'random',
-    'name': 'GCN_no_early',
+    'name': 'GCN',
     'metric': {'goal': 'maximize', 'name': 'valid aupr'},
     'parameters':
     {

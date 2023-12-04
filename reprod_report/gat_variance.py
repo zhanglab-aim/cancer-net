@@ -1,19 +1,12 @@
 import time
 import os
 import numpy as np
-
 import torch, torch_geometric.transforms as T, torch.nn.functional as F
 from torch.utils.data.sampler import SubsetRandomSampler
-
 from torch_geometric.loader import DataLoader
-
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.callbacks import ModelCheckpoint
-
 import matplotlib.pyplot as plt
-
 from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
@@ -24,18 +17,17 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-
 import wandb
 import pickle
 
-from cancernet.arch import GATNew
+from cancernet.arch import GATNet
 from cancernet.util import ProgressBar, InMemoryLogger, get_roc
 from cancernet import PnetDataSet
 
-project_string='init_variance_June'
+project_string='init_variance'
 
 def train():
-    wandb.init(project=project_string, entity="cancer-net", dir="/scratch/cp3759/cancer-net/wandb_runs/init_variance/GAT_no_early")
+    wandb.init(project=project_string)
     ## Set parameters - best performing model
     graph_dims=256
     heads=5
@@ -47,12 +39,12 @@ def train():
     print("lr=",lr)
     print(wandb.config)
 
-    base_data_string="/scratch/cp3759/cancer-net/cancer_data"
+    ## path to data
+    base_data_string="../data"
 
     dataset = PnetDataSet(
         root=os.path.join(base_data_string, "prostate"),
         name="prostate_graph_humanbase",
-        # files={'graph_file': "global.geneSymbol.gz"},
         edge_tol=0.5,
         pre_transform=T.Compose(
             [T.GCNNorm(add_self_loops=False), T.ToSparseTensor(remove_edge_index=False)]),)
@@ -82,7 +74,7 @@ def train():
     t0 = time.time()
 
     ##### MODELS #####
-    model = GATNew(hidden_channels=graph_dims,num_layers=layers,heads=heads,lr=lr)
+    model = GATNet(hidden_channels=graph_dims,num_layers=layers,heads=heads,lr=lr)
     print(model)
 
     n_param=sum(p.numel() for p in model.parameters())
@@ -197,6 +189,7 @@ def train():
                 "test precision": test_precision,
                 "test recall": test_recall}
 
+    ## Saves results as pickle file in wandb run folder
     with open(wandb.run.dir+'/results_dict.p', 'wb') as handle:
         pickle.dump(results_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
@@ -205,7 +198,7 @@ def train():
 
 sweep_configuration = {
     'method': 'grid',
-    'name': 'GAT_no_early',
+    'name': 'GAT',
     'metric': {'goal': 'maximize', 'name': 'test aupr'},
     'parameters':
     {
@@ -213,7 +206,6 @@ sweep_configuration = {
        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]}
      }
 }
-
 
 sweep_id = wandb.sweep(sweep=sweep_configuration, project=project_string)
 
