@@ -36,16 +36,10 @@ class PnetDataSet(Dataset):
         self.root=root
         self._files={}
         all_data,response=data_reader(filename_dict=self.raw_file_names,graph=False)
-        self.patients_all=list(response.index)
+        self.subject_id=list(response.index)
         self.x=torch.tensor(all_data.to_numpy(),dtype=torch.float32)
         self.x=self.x.view(len(self.x),-1,self.num_features)
         self.y=torch.tensor(response.to_numpy(),dtype=torch.float32)
-       
-        gene_list=list(all_data.head(0))[0::self.num_features]
-        self.gene_dict={}
-        for aa in range(len(gene_list)):
-            self.gene_dict[gene_list[aa][0]]=aa
-            
 
         self.genes=[g[0] for g in list(all_data.head(0))[0::self.num_features]]
         
@@ -82,20 +76,17 @@ class PnetDataSet(Dataset):
         valid_set = pd.read_csv(valid_fp, index_col=0)
         test_set = pd.read_csv(test_fp, index_col=0)
         
-        
-        #patients_all=list(self.response.index)
-        ##
         patients_train=list(train_set.loc[:,"id"])
-        both = set(self.patients_all).intersection(patients_train)
-        self.train_idx=[self.patients_all.index(x) for x in both]
+        both = set(self.subject_id).intersection(patients_train)
+        self.train_idx=[self.subject_id.index(x) for x in both]
         
         patients_valid=list(valid_set.loc[:,"id"])
-        both = set(self.patients_all).intersection(patients_valid)
-        self.valid_idx=[self.patients_all.index(x) for x in both]
+        both = set(self.subject_id).intersection(patients_valid)
+        self.valid_idx=[self.subject_id.index(x) for x in both]
         
         patients_test=list(test_set.loc[:,"id"])
-        both = set(self.patients_all).intersection(patients_test)
-        self.test_idx=[self.patients_all.index(x) for x in both]
+        both = set(self.subject_id).intersection(patients_test)
+        self.test_idx=[self.subject_id.index(x) for x in both]
         
         # check no redundency
         assert len(self.train_idx) == len(set(self.train_idx))
