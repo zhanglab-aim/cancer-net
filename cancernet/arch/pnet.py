@@ -22,7 +22,6 @@ class FeatureLayer(torch.nn.Module):
         weights = torch.Tensor(self.num_genes, self.num_features)
         self.weights = nn.Parameter(weights)
         self.bias = nn.Parameter(torch.Tensor(self.num_genes))
-        # initialise weights using a normal distribution; can also try uniform
         torch.nn.init.xavier_uniform_(self.weights)
         torch.nn.init.zeros_(self.bias)
 
@@ -71,6 +70,7 @@ class PNet(BaseNet):
         num_features: int = 3,
         lr: float = 0.001,
         intermediate_outputs: bool = True,
+        class_weights=True
     ):
         """Initialize.
         :param layers: list of pandas dataframes describing the pnet masks for each
@@ -80,7 +80,7 @@ class PNet(BaseNet):
         :param lr: learning rate
         """
         super().__init__(lr=lr)
-        self.criterion = nn.BCELoss(reduction="sum")
+        self.class_weights=class_weights
         self.layers = layers
         self.num_genes = num_genes
         self.num_features = num_features
@@ -117,16 +117,11 @@ class PNet(BaseNet):
                     nn.Sequential(nn.Linear(layer_map.shape[0], 1), nn.Sigmoid())
                 )
 
-    def forward(self, data):
+    def forward(self, x):
         """Only uses the "node features", which in this case we just treat as a data
         vector for the sparse feedforward network.
         """
-        ## Create list for each component of the loss:
-        # reshape for batching appropriate for feedfoward network
-        x = torch.reshape(
-            data.x, (int(data.batch[-1] + 1), self.num_genes, self.num_features)
-        )
-
+        
         ## update hidden states x while record the intermediate
         ## layer outcome predictions y
         y = []
@@ -141,19 +136,23 @@ class PNet(BaseNet):
     def step(self, batch, kind: str) -> dict:
         """Step function executed by lightning trainer module."""
         # run the model and calculate loss
-        y_hat = self(batch)
+        x,y_true=batch
+        y_hat = self(x)
 
         loss = 0
+        if self.class_weights:
+            weights=y_true*0.75+0.75
+        else:
+            weights=None
+            
         for aa, y in enumerate(y_hat):
             ## Here we take a weighted average of the preditive outputs. Intermediate layers first
-            loss += self.loss_weights[aa] * self.criterion(
-                y.squeeze(), batch.y.to(torch.float32)
-            )
+            loss += self.loss_weights[aa] * F.binary_cross_entropy(y, y_true,weight=weights)
         loss /= np.sum(self.loss_weights[aa])
 
-        correct = ((y_hat[-1] > 0.5).flatten() == batch.y).sum()
+        correct = ((y_hat[-1] > 0.5).flatten() == y_true.flatten()).sum()
         # assess accuracy
-        total = len(batch.y)
+        total = len(y_true)
         batch_dict = {
             "loss": loss,
             # correct and total will be used at epoch end
