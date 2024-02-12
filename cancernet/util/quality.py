@@ -38,7 +38,13 @@ def get_roc(
     ys = []
     device = next(iter(model.parameters())).device
     for tb in loader:
-        tb = tb.to(device)
+        if hasattr(tb,"subject_id"):
+            tb = tb.to(device)
+            y=tb.y
+        else:
+            x,y=tb
+            tb=x
+        
         output = model(tb)
 
         # handle multiple outputs
@@ -51,7 +57,7 @@ def get_roc(
             output = np.exp(output)
         outs.append(output)
 
-        ys.append(tb.y.detach().cpu().numpy())
+        ys.append(y.detach().cpu().numpy())
 
     outs = np.concatenate(outs)
     ys = np.concatenate(ys)
