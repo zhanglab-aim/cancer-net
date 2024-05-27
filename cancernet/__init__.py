@@ -1,1 +1,1 @@
-from .dataset import PnetDataSet, ReactomeNetwork
+from .dataset import PnetDataSet, BrainDataSet, ReactomeNetwork

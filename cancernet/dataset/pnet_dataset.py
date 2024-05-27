@@ -5,6 +5,7 @@ import copy
 import gzip
 import logging
 import pickle
+import json
 import tqdm
 
 import numpy as np
@@ -21,6 +22,52 @@ from torch_sparse import coalesce
 
 
 cached_data = {}  # all data read will be referenced here
+
+class BrainDataSet(Dataset):
+    def __init__(self,data_path,response_path,gene_path,val_split=0.08,test_split=0.08,seed=19988):
+        self.data_path=data_path
+        self.response_path=response_path
+        self.gene_path=gene_path
+        self.val_split=val_split
+        self.test_split=test_split
+        self.seed=seed
+        ## Set numpy seed
+        np.random.seed(seed)
+        
+        ## Load x data
+        with open(self.data_path, 'rb') as fp:
+            self.x = pickle.load(fp)
+        self.x=torch.tensor(self.x,dtype=torch.float32)
+            
+        ## Load y data
+        response_table=pd.read_csv(self.response_path)
+        self.y=torch.tensor(response_table.values[0][1:],dtype=torch.float32).unsqueeze(1)
+        
+        ## Load genes
+        with open(gene_path, 'r') as f:
+            self.genes = json.load(f)
+            
+        ## Set split indices
+        self._get_split_indices()
+        
+    def _get_split_indices(self):
+        
+        all_idx=np.arange(len(self.y))
+        np.random.shuffle(all_idx)
+        num_valid=int(self.val_split*len(self.y))
+        num_test=int(self.test_split*len(self.y))
+        self.valid_idx=all_idx[0:num_valid]
+        self.test_idx=all_idx[num_valid:num_valid+num_test]
+        self.train_idx=all_idx[num_valid+num_test:]
+        
+    def __len__(self):
+        return len(self.y)
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        return self.x[idx],self.y[idx]
 
 class PnetDataSet(Dataset):
     def __init__(

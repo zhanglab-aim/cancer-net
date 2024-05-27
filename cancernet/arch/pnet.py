@@ -7,7 +7,7 @@ from torch.nn import Linear, ReLU
 from cancernet.arch.base_net import BaseNet
 from cancernet.util import scatter_nd
 
-
+import pandas as pd ########################################################################################
 class FeatureLayer(torch.nn.Module):
     """This layer will take our input data of size `(N_genes, N_features)`, and perform
     elementwise multiplication of the features of each gene. This is effectively
@@ -37,7 +37,10 @@ class SparseLayer(torch.nn.Module):
 
     def __init__(self, layer_map):
         super().__init__()
-        map_numpy = layer_map.to_numpy()
+        if type(layer_map)==pd.core.frame.DataFrame:
+            map_numpy = layer_map.to_numpy()
+        else:
+            map_numpy=layer_map
         self.register_buffer(
             "nonzero_indices", torch.LongTensor(np.array(np.nonzero(map_numpy)).T)
         )
