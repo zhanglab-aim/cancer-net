@@ -3,11 +3,11 @@ import numpy as np
 import torch.nn.functional as F
 from torch import nn
 from torch.nn import Linear, ReLU
+import pandas as pd 
 
 from cancernet.arch.base_net import BaseNet
 from cancernet.util import scatter_nd
 
-import pandas as pd ########################################################################################
 class FeatureLayer(torch.nn.Module):
     """This layer will take our input data of size `(N_genes, N_features)`, and perform
     elementwise multiplication of the features of each gene. This is effectively
@@ -73,7 +73,8 @@ class PNet(BaseNet):
         num_features: int = 3,
         lr: float = 0.001,
         intermediate_outputs: bool = True,
-        class_weights=True
+        class_weights: bool=True,
+        scheduler: str="lambda"
     ):
         """Initialize.
         :param layers: list of pandas dataframes describing the pnet masks for each
@@ -82,7 +83,7 @@ class PNet(BaseNet):
         :param num_features: number of features for each gene
         :param lr: learning rate
         """
-        super().__init__(lr=lr)
+        super().__init__(lr=lr,scheduler=scheduler)
         self.class_weights=class_weights
         self.layers = layers
         self.num_genes = num_genes
@@ -121,12 +122,10 @@ class PNet(BaseNet):
                 )
 
     def forward(self, x):
-        """Only uses the "node features", which in this case we just treat as a data
-        vector for the sparse feedforward network.
-        """
-        
-        ## update hidden states x while record the intermediate
-        ## layer outcome predictions y
+        """ Forward pass, output a list containing predictions from each
+            intermediate layer, which can be weighted differently during
+            training & validation """
+
         y = []
         x = self.network[0](x)
         for aa in range(1, len(self.network) - 1):
