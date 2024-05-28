@@ -1,16 +1,13 @@
 import os
 import time
-
 import copy
 import gzip
 import logging
 import pickle
 import json
 import tqdm
-
 import numpy as np
 import pandas as pd
-
 from collections import defaultdict
 from typing import Optional, Callable
 
@@ -24,7 +21,15 @@ from torch_sparse import coalesce
 cached_data = {}  # all data read will be referenced here
 
 class BrainDataSet(Dataset):
-    def __init__(self,data_path,response_path,gene_path,val_split=0.08,test_split=0.08,seed=19988):
+        """ Dataset for TCGA database for LGG and GBM brain cancers. """
+
+    def __init__(self,data_path,response_path,gene_path,val_split=0.08,test_split=0.08,seed=19988):#
+        """  
+        We use 3 features for each gene, one-hot encodings of genetic mutation, copy
+        number amplification, and copy number deletion.
+        data vector, x, is in the shape [patient, gene, feature]
+        """
+
         self.data_path=data_path
         self.response_path=response_path
         self.gene_path=gene_path
@@ -69,7 +74,9 @@ class BrainDataSet(Dataset):
 
         return self.x[idx],self.y[idx]
 
+
 class PnetDataSet(Dataset):
+    """ Prostate cancer dataset, used to reproduce https://www.nature.com/articles/s41586-021-03922-4 """
     def __init__(
             self,
             num_features=3,
@@ -79,6 +86,12 @@ class PnetDataSet(Dataset):
             valid_seed: int = 0,
             test_seed: int = 7357,
         ):
+        """  
+        We use 3 features for each gene, one-hot encodings of genetic mutation, copy
+        number amplification, and copy number deletion.
+        data vector, x, is in the shape [patient, gene, feature]
+        """
+
         self.num_features=num_features
         self.root=root
         self._files={}
@@ -90,7 +103,6 @@ class PnetDataSet(Dataset):
 
         self.genes=[g[0] for g in list(all_data.head(0))[0::self.num_features]]
         
-        # call pyg
         self.num_samples = len(self.y)
         self.num_test_samples = int(test_ratio * self.num_samples)
         self.num_valid_samples = int(valid_ratio * self.num_samples)
@@ -100,6 +112,7 @@ class PnetDataSet(Dataset):
         self.split_index_by_rng(test_seed=test_seed, valid_seed=valid_seed)
         
     def split_index_by_rng(self, test_seed, valid_seed):
+        """ Generate random splits for train, valid, test """
         # train/valid/test random generators
         rng_test = np.random.default_rng(test_seed)
         rng_valid = np.random.default_rng(valid_seed)
@@ -119,6 +132,7 @@ class PnetDataSet(Dataset):
         )
 
     def split_index_by_file(self, train_fp, valid_fp, test_fp):
+        """ Load train, valid, test splits from file """
         train_set = pd.read_csv(train_fp, index_col=0)
         valid_set = pd.read_csv(valid_fp, index_col=0)
         test_set = pd.read_csv(test_fp, index_col=0)
@@ -154,10 +168,6 @@ class PnetDataSet(Dataset):
     @property
     def raw_file_names(self):
         return {
-            # non-tumor-specific data
-            "graph_file": os.path.join(
-                self.root, self._files.get("graph_file", "prostate_gland.geneSymbol.gz")
-            ),
             "selected_genes": os.path.join(
                 self.root,
                 self._files.get(
@@ -208,6 +218,8 @@ class PnetDataSet(Dataset):
         return self.x[idx],self.y[idx]
 
 class GraphDataSet(InMemoryDataset):
+    """ PyG graph dataset to model genetic networks.
+        Edge connections are imported from https://hb.flatironinstitute.org/ """
     def __init__(
         self,
         name="prostate_graph_humanbase",
@@ -424,15 +436,15 @@ class GraphDataSet(InMemoryDataset):
 def data_reader(filename_dict,graph=True):
     # sanity checks for filename_dict
     assert "response" in filename_dict, "must parse a response file"
-    for f in filename_dict.values():
-        if not os.path.isfile(f):
-            raise FileNotFoundError(f)
     fd = copy.deepcopy(filename_dict)
     # first get non-tumor genomic/config data types out
     if graph==True:
+        ## Only check for graph files if we are loading graph data
+        for f in filename_dict.values():
+            if not os.path.isfile(f):
+                raise FileNotFoundError(f)
         edge_dict = graph_reader_and_processor(graph_file=fd.pop("graph_file"))
-    else:
-        del(fd["graph_file"])
+
     selected_genes = fd.pop("selected_genes")
     if selected_genes is not None:
         selected_genes = pd.read_csv(selected_genes)["genes"]
