@@ -21,9 +21,8 @@ from torch_sparse import coalesce
 cached_data = {}  # all data read will be referenced here
 
 class BrainDataSet(Dataset):
-        """ Dataset for TCGA database for LGG and GBM brain cancers. """
-
-    def __init__(self,data_path,response_path,gene_path,val_split=0.08,test_split=0.08,seed=19988):#
+    """ Dataset for TCGA database for LGG and GBM brain cancers."""
+    def __init__(self,data_path,response_path,gene_path,val_split=0.08,test_split=0.08,seed=19988):
         """  
         We use 3 features for each gene, one-hot encodings of genetic mutation, copy
         number amplification, and copy number deletion.
@@ -56,7 +55,7 @@ class BrainDataSet(Dataset):
         self._get_split_indices()
         
     def _get_split_indices(self):
-        
+        """ Get randomly drawn train, valid, test splits """
         all_idx=np.arange(len(self.y))
         np.random.shuffle(all_idx)
         num_valid=int(self.val_split*len(self.y))
