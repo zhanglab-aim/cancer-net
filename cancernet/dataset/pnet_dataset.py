@@ -1,20 +1,18 @@
 import os
 import time
-
 import copy
 import gzip
 import logging
 import pickle
+import json
 import tqdm
-
 import numpy as np
 import pandas as pd
-
 from collections import defaultdict
 from typing import Optional, Callable
 
-# for graph building
 import torch
+from torch.utils.data import Dataset
 from torch_geometric.data import InMemoryDataset, Data
 from torch_geometric.utils import remove_self_loops
 from torch_sparse import coalesce
@@ -22,8 +20,205 @@ from torch_sparse import coalesce
 
 cached_data = {}  # all data read will be referenced here
 
+class BrainDataSet(Dataset):
+    """ Dataset for TCGA database for LGG and GBM brain cancers."""
+    def __init__(self,data_path,response_path,gene_path,val_split=0.08,test_split=0.08,seed=19988):
+        """  
+        We use 3 features for each gene, one-hot encodings of genetic mutation, copy
+        number amplification, and copy number deletion.
+        data vector, x, is in the shape [patient, gene, feature]
+        """
 
-class PnetDataSet(InMemoryDataset):
+        self.data_path=data_path
+        self.response_path=response_path
+        self.gene_path=gene_path
+        self.val_split=val_split
+        self.test_split=test_split
+        self.seed=seed
+        ## Set numpy seed
+        np.random.seed(seed)
+        
+        ## Load x data
+        with open(self.data_path, 'rb') as fp:
+            self.x = pickle.load(fp)
+        self.x=torch.tensor(self.x,dtype=torch.float32)
+            
+        ## Load y data
+        response_table=pd.read_csv(self.response_path)
+        self.y=torch.tensor(response_table.values[0][1:],dtype=torch.float32).unsqueeze(1)
+        
+        ## Load genes
+        with open(gene_path, 'r') as f:
+            self.genes = json.load(f)
+            
+        ## Set split indices
+        self._get_split_indices()
+        
+    def _get_split_indices(self):
+        """ Get randomly drawn train, valid, test splits """
+        all_idx=np.arange(len(self.y))
+        np.random.shuffle(all_idx)
+        num_valid=int(self.val_split*len(self.y))
+        num_test=int(self.test_split*len(self.y))
+        self.valid_idx=all_idx[0:num_valid]
+        self.test_idx=all_idx[num_valid:num_valid+num_test]
+        self.train_idx=all_idx[num_valid+num_test:]
+        
+    def __len__(self):
+        return len(self.y)
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        return self.x[idx],self.y[idx]
+
+
+class PnetDataSet(Dataset):
+    """ Prostate cancer dataset, used to reproduce https://www.nature.com/articles/s41586-021-03922-4 """
+    def __init__(
+            self,
+            num_features=3,
+            root: Optional[str] = "./data/prostate/",
+            valid_ratio: float = 0.102,
+            test_ratio: float = 0.102,
+            valid_seed: int = 0,
+            test_seed: int = 7357,
+        ):
+        """  
+        We use 3 features for each gene, one-hot encodings of genetic mutation, copy
+        number amplification, and copy number deletion.
+        data vector, x, is in the shape [patient, gene, feature]
+        """
+
+        self.num_features=num_features
+        self.root=root
+        self._files={}
+        all_data,response=data_reader(filename_dict=self.raw_file_names,graph=False)
+        self.subject_id=list(response.index)
+        self.x=torch.tensor(all_data.to_numpy(),dtype=torch.float32)
+        self.x=self.x.view(len(self.x),-1,self.num_features)
+        self.y=torch.tensor(response.to_numpy(),dtype=torch.float32)
+
+        self.genes=[g[0] for g in list(all_data.head(0))[0::self.num_features]]
+        
+        self.num_samples = len(self.y)
+        self.num_test_samples = int(test_ratio * self.num_samples)
+        self.num_valid_samples = int(valid_ratio * self.num_samples)
+        self.num_train_samples = (
+            self.num_samples - self.num_test_samples - self.num_valid_samples
+        )
+        self.split_index_by_rng(test_seed=test_seed, valid_seed=valid_seed)
+        
+    def split_index_by_rng(self, test_seed, valid_seed):
+        """ Generate random splits for train, valid, test """
+        # train/valid/test random generators
+        rng_test = np.random.default_rng(test_seed)
+        rng_valid = np.random.default_rng(valid_seed)
+
+        # splitting off the test indices
+        test_split_perm = rng_test.permutation(self.num_samples)
+        self.test_idx = list(test_split_perm[: self.num_test_samples])
+        self.trainvalid_indices = test_split_perm[self.num_test_samples :]
+
+        # splitting off the validation from the remainder
+        valid_split_perm = rng_valid.permutation(len(self.trainvalid_indices))
+        self.valid_idx = list(
+            self.trainvalid_indices[valid_split_perm[: self.num_valid_samples]]
+        )
+        self.train_idx = list(
+            self.trainvalid_indices[valid_split_perm[self.num_valid_samples :]]
+        )
+
+    def split_index_by_file(self, train_fp, valid_fp, test_fp):
+        """ Load train, valid, test splits from file """
+        train_set = pd.read_csv(train_fp, index_col=0)
+        valid_set = pd.read_csv(valid_fp, index_col=0)
+        test_set = pd.read_csv(test_fp, index_col=0)
+        
+        patients_train=list(train_set.loc[:,"id"])
+        both = set(self.subject_id).intersection(patients_train)
+        self.train_idx=[self.subject_id.index(x) for x in both]
+        
+        patients_valid=list(valid_set.loc[:,"id"])
+        both = set(self.subject_id).intersection(patients_valid)
+        self.valid_idx=[self.subject_id.index(x) for x in both]
+        
+        patients_test=list(test_set.loc[:,"id"])
+        both = set(self.subject_id).intersection(patients_test)
+        self.test_idx=[self.subject_id.index(x) for x in both]
+        
+        # check no redundency
+        assert len(self.train_idx) == len(set(self.train_idx))
+        assert len(self.valid_idx) == len(set(self.valid_idx))
+        assert len(self.test_idx) == len(set(self.test_idx))
+        # check no overlap
+        assert len(set(self.train_idx).intersection(set(self.valid_idx))) == 0
+        assert len(set(self.train_idx).intersection(set(self.test_idx))) == 0
+        assert len(set(self.valid_idx).intersection(set(self.test_idx))) == 0
+        
+    def __repr__(self):
+        return (
+            f"PnetDataset("
+            f"len={len(self)}, "
+            f")"
+        )
+
+    @property
+    def raw_file_names(self):
+        return {
+            "selected_genes": os.path.join(
+                self.root,
+                self._files.get(
+                    "selected_genes",
+                    "tcga_prostate_expressed_genes_and_cancer_genes.csv",
+                ),
+            ),
+            "use_coding_genes_only": os.path.join(
+                self.root,
+                self._files.get(
+                    "use_coding_genes_only",
+                    "protein-coding_gene_with_coordinate_minimal.txt",
+                ),
+            ),
+            # tumor data
+            "response": os.path.join(
+                self.root, self._files.get("response", "response_paper.csv")
+            ),
+            "mut_important": os.path.join(
+                self.root,
+                self._files.get(
+                    "mut_important", "P1000_final_analysis_set_cross_important_only.csv"
+                ),
+            ),
+            "cnv_amp": os.path.join(
+                self.root, self._files.get("cnv_amp", "P1000_data_CNA_paper.csv")
+            ),
+            "cnv_del": os.path.join(
+                self.root, self._files.get("cnv_del", "P1000_data_CNA_paper.csv")
+            ),
+        }
+
+    @property
+    def processed_file_names(self):
+        return f"data-{self.name}-{self.edge_tol:.2f}.pt"
+
+    @property
+    def processed_dir(self) -> str:
+        return self.root
+    
+    def __len__(self):
+        return len(self.y)
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        return self.x[idx],self.y[idx]
+
+class GraphDataSet(InMemoryDataset):
+    """ PyG graph dataset to model genetic networks.
+        Edge connections are imported from https://hb.flatironinstitute.org/ """
     def __init__(
         self,
         name="prostate_graph_humanbase",
@@ -237,15 +432,18 @@ class PnetDataSet(InMemoryDataset):
         return self.root
 
 
-def data_reader(filename_dict):
+def data_reader(filename_dict,graph=True):
     # sanity checks for filename_dict
     assert "response" in filename_dict, "must parse a response file"
-    for f in filename_dict.values():
-        if not os.path.isfile(f):
-            raise FileNotFoundError(f)
     fd = copy.deepcopy(filename_dict)
     # first get non-tumor genomic/config data types out
-    edge_dict = graph_reader_and_processor(graph_file=fd.pop("graph_file"))
+    if graph==True:
+        ## Only check for graph files if we are loading graph data
+        for f in filename_dict.values():
+            if not os.path.isfile(f):
+                raise FileNotFoundError(f)
+        edge_dict = graph_reader_and_processor(graph_file=fd.pop("graph_file"))
+
     selected_genes = fd.pop("selected_genes")
     if selected_genes is not None:
         selected_genes = pd.read_csv(selected_genes)["genes"]
@@ -276,7 +474,10 @@ def data_reader(filename_dict):
     )
     all_data = res[0]
     response = labels.loc[all_data.index]
-    return all_data, response, edge_dict
+    if graph==True:
+        return all_data, response, edge_dict
+    else:
+        return all_data, response
 
 
 def graph_reader_and_processor(graph_file):

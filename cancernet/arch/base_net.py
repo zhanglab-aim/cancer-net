@@ -12,22 +12,24 @@ class BaseNet(pl.LightningModule):
     function, and simple logging.
     """
 
-    def __init__(self, lr: float = 0.01):
+    def __init__(self, lr: float = 0.01, scheduler: str="lambda"):
         super().__init__()
 
         self.lr = lr
-        self.save_hyperparameters()
+        self.scheduler=scheduler
 
     def configure_optimizers(self) -> Tuple[List, List]:
         """Set up optimizers and schedulers.
-
-        Uses Adam, learning rate from `self.lr`, and no scheduler by default. Override
-        to add scheduler / modify optimizer.
         """
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
 
-        lr_lambda = lambda epoch: 1.0 if epoch < 30 else 0.5 if epoch < 60 else 0.1
-        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        if self.scheduler=="lambda":
+            lr_lambda = lambda epoch: 1.0 if epoch < 30 else 0.5 if epoch < 60 else 0.1
+            scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        elif self.scheduler=="pnet": ## Take scheduler from pnet
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 50, gamma=0.25)
+        else:
+            scheduler=None
 
         return [optimizer], [scheduler]
 

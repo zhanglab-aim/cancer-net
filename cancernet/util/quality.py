@@ -8,7 +8,7 @@ from typing import Iterable, Tuple, Optional
 
 
 def get_roc(
-    model: torch.nn.Module, loader: Iterable, seed: Optional[int] = 1, exp: bool = True
+    model: torch.nn.Module, loader: Iterable, seed: Optional[int] = 1, exp: bool = True, takeLast: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
     """Run a model on the a dataset and calculate ROC and AUC.
 
@@ -22,6 +22,8 @@ def get_roc(
     :param loader: data loader
     :param seed: PyTorch random seed; set to `None` to avoid setting the seed
     :param exp: if `True`, exponential model outputs before calculating ROC
+    :param takeLast: Some architectures produce multiple outputs from intermediate layers.
+                    If True, take the final prediction, if False take average of all predictions.
     :return: a tuple `(fpr, tpr, auc_value, ys, outs)`, where `(fpr, tpr)` are vectors
         representing the ROC curve; `auc_value` is the AUC; `ys` and `outs` are the
         expected (ground-truth) outputs and the (exponentiated) model outputs,
@@ -37,21 +39,34 @@ def get_roc(
     outs = []
     ys = []
     device = next(iter(model.parameters())).device
-    for tb in loader:
-        tb = tb.to(device)
-        output = model(tb)
-
-        # handle multiple outputs
-        if not torch.is_tensor(output):
-            assert hasattr(output, "__getitem__")
-            output = output[-1]
-
-        output = output.detach().cpu().numpy()
-        if exp:
-            output = np.exp(output)
-        outs.append(output)
-
-        ys.append(tb.y.detach().cpu().numpy())
+    with torch.no_grad():
+        for tb in loader:
+            if hasattr(tb,"subject_id"):
+                tb = tb.to(device)
+                y=tb.y
+            else:
+                x,y=tb
+                tb=x
+            
+            output = model(tb)
+    
+            # handle multiple outputs
+            if not torch.is_tensor(output):
+                assert hasattr(output, "__getitem__")
+                ## Either take last prediction
+                if takeLast:
+                    output = output[-1].cpu().numpy()
+                ## Or average over all
+                else:
+                    output = np.mean(np.array(output),axis=0)
+            else:
+                output = output.cpu().numpy()
+                
+            if exp:
+                output = np.exp(output)
+            outs.append(output)
+    
+            ys.append(y.cpu().numpy())
 
     outs = np.concatenate(outs)
     ys = np.concatenate(ys)
